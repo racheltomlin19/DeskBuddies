@@ -1,0 +1,17 @@
+node_modules/
+dist/
+release/
+.vite/
+references/
+.worktrees/
+npm-debug.log*
+*.local
+.deskbuddies-vite.*.log
+.superpowers/
+.superpowers/ssd
+
+.superpowers/sdd/progress.md
+
+# Delivery build (contains tokens)
+scripts/build_deskbuddies.sh
+build.delivery.json
