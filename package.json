@@ -14,7 +14,7 @@
     "preview": "vite preview --host 127.0.0.1",
     "start": "electron .",
     "make-icon": "node scripts/make-icon.mjs",
-    "dist": "npm run make-icon && npm run build && electron-builder"
+    "dist": "npm run make-icon && npm run build && rm -rf release && electron-builder"
   },
   "build": {
     "appId": "com.deskbuddies.desktop",
@@ -23,7 +23,6 @@
       "output": "release"
     },
     "files": [
-      "dist/**",
       "electron/**",
       "package.json"
     ],
@@ -31,6 +30,10 @@
       {
         "from": "build/icon.png",
         "to": "icon.png"
+      },
+      {
+        "from": "dist",
+        "to": "dist"
       }
     ],
     "win": {
@@ -53,6 +56,7 @@
     "extraFiles": []
   },
   "dependencies": {
+    "@rollup/rollup-linux-x64-gnu": "^4.62.2",
     "lucide-react": "^0.468.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
