@@ -19,7 +19,7 @@ function runtime(id: string, x: number, y: number): PetRuntime {
 
 describe("simulation overlap resolution", () => {
   it("separates autonomous ground-roaming pets horizontally without changing their ground heights", () => {
-    const current = [runtime("buddy1", 300, 360), runtime("buddy2", 300, 350)];
+    const current = [runtime("mochi", 300, 360), runtime("biscuit", 300, 350)];
     const resolved = resolveSimulationOverlaps(
       current,
       customCompanions,

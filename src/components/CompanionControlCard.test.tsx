@@ -6,7 +6,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { catalogCompanions, customCompanions } from "../data";
 import { CompanionControlCard } from "./CompanionControlCard";
 
-const buddy1 = customCompanions.find((pet) => pet.id === "buddy1")!;
+const mochi = customCompanions.find((pet) => pet.id === "mochi")!;
 const yorkie = catalogCompanions.find((pet) => pet.id === "yorkie")!;
 
 function clickByLabel(container: HTMLElement, label: string) {
@@ -49,7 +49,7 @@ describe("CompanionControlCard", () => {
     await act(async () => {
       root!.render(
         <CompanionControlCard
-          pet={buddy1}
+          pet={mochi}
           heldMode={null}
           onHeldMode={onHeldMode}
           onAction={onAction}
@@ -60,24 +60,24 @@ describe("CompanionControlCard", () => {
     });
 
     await act(async () => {
-      clickByLabel(container!, "Walk Buddy1");
-      clickByLabel(container!, "Auto Buddy1");
-      clickByLabel(container!, "Sit Buddy1");
-      clickByLabel(container!, "Nap Buddy1");
-      clickByLabel(container!, "Jump Buddy1");
-      clickByLabel(container!, "Pounce Buddy1");
-      clickByLabel(container!, "Sync behavior from Buddy1");
-      changeRange(container!, "Pace Buddy1", "0.77");
+      clickByLabel(container!, "Walk Mochi");
+      clickByLabel(container!, "Auto Mochi");
+      clickByLabel(container!, "Sit Mochi");
+      clickByLabel(container!, "Nap Mochi");
+      clickByLabel(container!, "Jump Mochi");
+      clickByLabel(container!, "Pounce Mochi");
+      clickByLabel(container!, "Sync behavior from Mochi");
+      changeRange(container!, "Pace Mochi", "0.77");
     });
 
-    expect(onHeldMode).toHaveBeenCalledWith("buddy1", "walk");
-    expect(onHeldMode).toHaveBeenCalledWith("buddy1", null);
-    expect(onHeldMode).toHaveBeenCalledWith("buddy1", "sit");
-    expect(onHeldMode).toHaveBeenCalledWith("buddy1", "sleep");
-    expect(onAction).toHaveBeenCalledWith(["buddy1"], "jump");
-    expect(onAction).toHaveBeenCalledWith(["buddy1"], "stalk");
-    expect(onSyncBehavior).toHaveBeenCalledWith("buddy1");
-    expect(onUpdatePet).toHaveBeenCalledWith("buddy1", { speed: 0.77 });
+    expect(onHeldMode).toHaveBeenCalledWith("mochi", "walk");
+    expect(onHeldMode).toHaveBeenCalledWith("mochi", null);
+    expect(onHeldMode).toHaveBeenCalledWith("mochi", "sit");
+    expect(onHeldMode).toHaveBeenCalledWith("mochi", "sleep");
+    expect(onAction).toHaveBeenCalledWith(["mochi"], "jump");
+    expect(onAction).toHaveBeenCalledWith(["mochi"], "stalk");
+    expect(onSyncBehavior).toHaveBeenCalledWith("mochi");
+    expect(onUpdatePet).toHaveBeenCalledWith("mochi", { speed: 0.77 });
   });
 
   it("omits the individual pounce action for non-cats", () => {

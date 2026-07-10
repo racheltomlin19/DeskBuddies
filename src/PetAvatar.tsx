@@ -22,17 +22,17 @@ export function PetAvatar({ pet, behavior = "idle", compact = false }: PetAvatar
   const props = { pet, behavior, compact };
 
   switch (pet.avatar) {
-    case "buddy1":
+    case "mochi":
       return isLocomotion(behavior) && !compact ? (
-        <CatWalkRig pet={pet} markings="buddy1" behavior={behavior} />
+        <CatWalkRig pet={pet} markings="mochi" behavior={behavior} />
       ) : (
-        <Buddy1Avatar {...props} />
+        <MochiAvatar {...props} />
       );
-    case "buddy2":
+    case "biscuit":
       return isLocomotion(behavior) && !compact ? (
-        <CatWalkRig pet={pet} markings="buddy2" behavior={behavior} />
+        <CatWalkRig pet={pet} markings="biscuit" behavior={behavior} />
       ) : (
-        <Buddy2Avatar {...props} />
+        <BiscuitAvatar {...props} />
       );
     case "punching-bag":
       return <PunchingBag {...props} />;
@@ -100,10 +100,10 @@ function CatPaw({ x, color, wide = false }: { x: number; color: string; wide?: b
   );
 }
 
-function Buddy1Avatar({ pet, behavior, compact }: Required<PetAvatarProps>) {
+function MochiAvatar({ pet, behavior, compact }: Required<PetAvatarProps>) {
   const sleeping = behavior === "sleep";
   const watch = behavior === "watch";
-  const poseClass = `buddy1-avatar pose-${behavior}${behavior === "walk" ? " pet-walk-body" : ""}`;
+  const poseClass = `mochi-avatar pose-${behavior}${behavior === "walk" ? " pet-walk-body" : ""}`;
   const eyeR = watch ? 8.5 : 6.5;
 
   return (
@@ -166,10 +166,10 @@ function Buddy1Avatar({ pet, behavior, compact }: Required<PetAvatarProps>) {
   );
 }
 
-function Buddy2Avatar({ pet, behavior, compact }: Required<PetAvatarProps>) {
+function BiscuitAvatar({ pet, behavior, compact }: Required<PetAvatarProps>) {
   const sleeping = behavior === "sleep";
   const stretch = behavior === "stretch";
-  const poseClass = `buddy2-avatar pose-${behavior}${behavior === "walk" ? " pet-walk-body" : ""}`;
+  const poseClass = `biscuit-avatar pose-${behavior}${behavior === "walk" ? " pet-walk-body" : ""}`;
   const eyesClosed = sleeping || stretch;
   const white = "#fffdf6";
   const headPath = "M54 56 C54 32 69 20 90 20 C111 20 126 32 126 56 C126 76 111 87 90 87 C69 87 54 76 54 56Z";

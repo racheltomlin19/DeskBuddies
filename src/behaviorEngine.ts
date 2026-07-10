@@ -403,7 +403,7 @@ export function getFountainX(settings: EngineSettings, width: number) {
 }
 
 /**
- * Sends Buddy2 to the fountain to drink now and then. Pure pre-pass; Buddy1
+ * Sends Biscuit to the fountain to drink now and then. Pure pre-pass; Mochi
  * and catalog pets ignore the fountain. No-op when the fountain is disabled.
  */
 export function applyFountain(
@@ -421,7 +421,7 @@ export function applyFountain(
   const petById = new Map(pets.map((pet) => [pet.id, pet]));
   return runtimes.map((runtime) => {
     const pet = petById.get(runtime.id);
-    if (!pet || pet.avatar !== "buddy2" || runtime.behavior !== "idle") {
+    if (!pet || pet.avatar !== "biscuit" || runtime.behavior !== "idle") {
       return runtime;
     }
     if (now - runtime.lastInteractionAt < 8000 || random() > 0.004) {
@@ -640,7 +640,7 @@ function advanceScreenRoam(
 const CUDDLE_DIST = 118;
 
 /**
- * Buddy1 and Buddy2 cuddle: when both custom cats are resting, the livelier
+ * Mochi and Biscuit cuddle: when both custom cats are resting, the livelier
  * one walks over and then they nap together. Pure pre-pass; runs before the
  * generic neighbor interactions so its cooldown suppresses double-firing.
  */
@@ -652,37 +652,37 @@ export function applyCuddle(
   random: () => number = Math.random
 ): PetRuntime[] {
   const petById = new Map(pets.map((pet) => [pet.id, pet]));
-  const buddy1 = runtimes.find((runtime) => runtime.id === "buddy1");
-  const buddy2 = runtimes.find((runtime) => runtime.id === "buddy2");
-  const buddy1Pet = petById.get("buddy1");
-  const buddy2Pet = petById.get("buddy2");
-  if (!buddy1 || !buddy2 || !buddy1Pet || !buddy2Pet) {
+  const mochi = runtimes.find((runtime) => runtime.id === "mochi");
+  const biscuit = runtimes.find((runtime) => runtime.id === "biscuit");
+  const mochiPet = petById.get("mochi");
+  const biscuitPet = petById.get("biscuit");
+  if (!mochi || !biscuit || !mochiPet || !biscuitPet) {
     return runtimes;
   }
 
   const isResting = (runtime: PetRuntime) => runtime.behavior === "idle" || runtime.behavior === "sit";
-  if (!isResting(buddy1) || !isResting(buddy2)) {
+  if (!isResting(mochi) || !isResting(biscuit)) {
     return runtimes;
   }
-  const cooldownOk = now - buddy1.lastInteractionAt > 6000 && now - buddy2.lastInteractionAt > 6000;
+  const cooldownOk = now - mochi.lastInteractionAt > 6000 && now - biscuit.lastInteractionAt > 6000;
   if (!cooldownOk || random() > 0.01) {
     return runtimes;
   }
 
-  const dist = Math.abs(buddy1.x - buddy2.x);
+  const dist = Math.abs(mochi.x - biscuit.x);
   if (dist <= CUDDLE_DIST) {
     // Close enough: sync into a shared nap.
     return runtimes.map((runtime) =>
-      runtime.id === "buddy1" || runtime.id === "buddy2"
+      runtime.id === "mochi" || runtime.id === "biscuit"
         ? { ...runtime, behavior: "sleep", stateStartedAt: now, lastInteractionAt: now }
         : runtime
     );
   }
 
   // Apart: the higher-energy cat pads over to the other.
-  const walkerId = buddy2Pet.energy >= buddy1Pet.energy ? "buddy2" : "buddy1";
-  const walker = walkerId === "buddy2" ? buddy2 : buddy1;
-  const partner = walkerId === "buddy2" ? buddy1 : buddy2;
+  const walkerId = biscuitPet.energy >= mochiPet.energy ? "biscuit" : "mochi";
+  const walker = walkerId === "biscuit" ? biscuit : mochi;
+  const partner = walkerId === "biscuit" ? mochi : biscuit;
   const side: 1 | -1 = walker.x >= partner.x ? 1 : -1;
   const targetX = clamp(partner.x + side * (CUDDLE_DIST - 26), 40, Math.max(40, bounds.width - 40));
   return runtimes.map((runtime) => {

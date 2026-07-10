@@ -2,7 +2,7 @@
   "name": "deskbuddies",
   "version": "0.1.0",
   "private": true,
-  "description": "Buddy1 and Buddy2 desktop companions",
+  "description": "Mochi and Biscuit desktop companions",
   "author": "DeskBuddies",
   "main": "electron/main.cjs",
   "type": "module",

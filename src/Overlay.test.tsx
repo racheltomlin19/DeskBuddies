@@ -38,8 +38,8 @@ describe("Overlay rendering", () => {
     const pets = container.querySelectorAll(".overlay-pet");
     expect(pets.length).toBe(summoned.length);
     expect(pets.length).toBeGreaterThanOrEqual(2);
-    expect(container.innerHTML).toContain("Buddy1");
-    expect(container.innerHTML).toContain("Buddy2");
+    expect(container.innerHTML).toContain("Mochi");
+    expect(container.innerHTML).toContain("Biscuit");
 
     await act(async () => {
       root.unmount();
@@ -97,7 +97,7 @@ describe("Overlay rendering", () => {
       return tags;
     };
 
-    expect(await renderWith(true)).toEqual(expect.arrayContaining(["Buddy1", "Buddy2"]));
+    expect(await renderWith(true)).toEqual(expect.arrayContaining(["Mochi", "Biscuit"]));
     expect(await renderWith(false)).toEqual([]);
   });
 

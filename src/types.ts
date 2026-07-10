@@ -14,7 +14,7 @@ export type Pattern =
   | "tuxedo"
   | "yorkie";
 
-export type AuthoredAvatar = "buddy1" | "buddy2";
+export type AuthoredAvatar = "mochi" | "biscuit";
 export type AvatarId = Pattern | AuthoredAvatar;
 export type CompanionKind = "custom" | "catalog";
 export type PopoutTab = "notes" | "tasks" | "timer";

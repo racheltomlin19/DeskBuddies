@@ -13,13 +13,13 @@ const calmCatalogPersonality: PersonalityWeights = {
 
 export const customCompanions: PetProfile[] = [
   {
-    id: "buddy1",
-    name: "Buddy1",
+    id: "mochi",
+    name: "Mochi",
     species: "cat",
     kind: "custom",
     locked: false,
     summoned: true,
-    avatar: "buddy1",
+    avatar: "mochi",
     pattern: "tuxedo",
     breedLabel: "watchful house cat",
     primaryColor: "#fdfdfa",
@@ -41,13 +41,13 @@ export const customCompanions: PetProfile[] = [
     }
   },
   {
-    id: "buddy2",
-    name: "Buddy2",
+    id: "biscuit",
+    name: "Biscuit",
     species: "cat",
     kind: "custom",
     locked: false,
     summoned: true,
-    avatar: "buddy2",
+    avatar: "biscuit",
     pattern: "tabby",
     breedLabel: "orange-and-white lounger",
     primaryColor: "#fffbf2",

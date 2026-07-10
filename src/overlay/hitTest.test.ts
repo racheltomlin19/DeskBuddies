@@ -9,8 +9,8 @@ import {
 } from "./hitTest";
 
 const boxes: PetBox[] = [
-  { id: "buddy1", x: 0, y: 0, width: 100, height: 100 },
-  { id: "buddy2", x: 50, y: 50, width: 100, height: 100 }
+  { id: "mochi", x: 0, y: 0, width: 100, height: 100 },
+  { id: "biscuit", x: 50, y: 50, width: 100, height: 100 }
 ];
 
 describe("findPetAtPoint", () => {
@@ -19,20 +19,20 @@ describe("findPetAtPoint", () => {
   });
 
   it("returns the pet under the point", () => {
-    expect(findPetAtPoint({ x: 10, y: 10 }, boxes)).toBe("buddy1");
+    expect(findPetAtPoint({ x: 10, y: 10 }, boxes)).toBe("mochi");
   });
 
   it("prefers the last (top-most) pet when boxes overlap", () => {
-    expect(findPetAtPoint({ x: 70, y: 70 }, boxes)).toBe("buddy2");
+    expect(findPetAtPoint({ x: 70, y: 70 }, boxes)).toBe("biscuit");
   });
 
   it("treats edges as inside", () => {
-    expect(findPetAtPoint({ x: 0, y: 0 }, boxes)).toBe("buddy1");
-    expect(findPetAtPoint({ x: 100, y: 0 }, boxes)).toBe("buddy1");
+    expect(findPetAtPoint({ x: 0, y: 0 }, boxes)).toBe("mochi");
+    expect(findPetAtPoint({ x: 100, y: 0 }, boxes)).toBe("mochi");
   });
 
   it("supports padded hit boxes", () => {
-    expect(findPetAtPoint({ x: -8, y: 10 }, boxes, 10)).toBe("buddy1");
+    expect(findPetAtPoint({ x: -8, y: 10 }, boxes, 10)).toBe("mochi");
     expect(findPetAtPoint({ x: -20, y: 10 }, boxes, 10)).toBeNull();
   });
 });

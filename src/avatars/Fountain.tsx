@@ -1,7 +1,7 @@
 const outline = "#704c35";
 
 /**
- * Small sticker water fountain that Buddy2 wanders over to drink from.
+ * Small sticker water fountain that Biscuit wanders over to drink from.
  * Drawn in a 120x150 viewBox, grounded at the bottom like the pets.
  */
 export function Fountain() {

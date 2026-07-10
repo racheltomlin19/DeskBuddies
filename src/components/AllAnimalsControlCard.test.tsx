@@ -58,7 +58,7 @@ describe("AllAnimalsControlCard", () => {
     });
 
     expect(onUpdateAll).toHaveBeenCalledWith({ energy: 0.66 });
-    expect(onAction).toHaveBeenCalledWith(["buddy1", "buddy2"], "stalk");
+    expect(onAction).toHaveBeenCalledWith(["mochi", "biscuit"], "stalk");
   });
 
   it("emits exact global settings patches", async () => {

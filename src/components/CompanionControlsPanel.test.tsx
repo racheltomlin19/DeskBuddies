@@ -43,8 +43,8 @@ describe("CompanionControlsPanel", () => {
     await renderPanel();
     const markup = container!.innerHTML;
 
-    expect(markup.indexOf("All Animals")).toBeLessThan(markup.indexOf("Buddy1"));
-    expect(markup.indexOf("Buddy1")).toBeLessThan(markup.indexOf("Buddy2"));
+    expect(markup.indexOf("All Animals")).toBeLessThan(markup.indexOf("Mochi"));
+    expect(markup.indexOf("Mochi")).toBeLessThan(markup.indexOf("Biscuit"));
   });
 
   it("shows an empty state and disables group controls when no pets are summoned", async () => {

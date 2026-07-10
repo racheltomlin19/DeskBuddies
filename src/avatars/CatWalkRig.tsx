@@ -8,7 +8,7 @@ const face = "#563927";
 
 interface CatWalkRigProps {
   pet: PetProfile;
-  markings: "buddy1" | "buddy2";
+  markings: "mochi" | "biscuit";
   behavior?: Behavior;
 }
 
@@ -30,8 +30,8 @@ function Leg({ className, x, coat }: { className: string; x: number; coat: strin
 /**
  * Side-profile articulated cat, facing right. The parent flips it with scaleX
  * for the other direction. Draw order back-to-front: shadow, tail, far legs,
- * body, near legs, head. Markings switch Buddy1 (gray crown + gray tabby tail)
- * vs Buddy2 (orange saddle/cap + orange striped tail).
+ * body, near legs, head. Markings switch Mochi (gray crown + gray tabby tail)
+ * vs Biscuit (orange saddle/cap + orange striped tail).
  */
 export function CatWalkRig({ pet, markings, behavior }: CatWalkRigProps) {
   const coat = pet.primaryColor;
@@ -39,7 +39,7 @@ export function CatWalkRig({ pet, markings, behavior }: CatWalkRigProps) {
   const stripe = pet.accentColor;
   const eye = pet.eyeColor;
   const farCoat = shade(coat);
-  const isBuddy2 = markings === "buddy2";
+  const isBiscuit = markings === "biscuit";
 
   return (
     <svg className="pet-svg sticker-pet" viewBox="0 0 200 150" role="img" aria-label={`${pet.name} ${pet.breedLabel}`}>
@@ -58,12 +58,12 @@ export function CatWalkRig({ pet, markings, behavior }: CatWalkRigProps) {
           <path
             d="M56 92 C30 92 20 70 26 50"
             fill="none"
-            stroke={isBuddy2 ? mark : mark}
+            stroke={isBiscuit ? mark : mark}
             strokeWidth="11"
             strokeLinecap="round"
           />
-          {/* Buddy1: white tail tip. Buddy2: keep orange to the tip. */}
-          {!isBuddy2 && (
+          {/* Mochi: white tail tip. Biscuit: keep orange to the tip. */}
+          {!isBiscuit && (
             <path d="M27 56 C26 53 26 52 26 50" fill="none" stroke={coat} strokeWidth="11" strokeLinecap="round" />
           )}
           {/* tabby stripe rings on the tail */}
@@ -77,7 +77,7 @@ export function CatWalkRig({ pet, markings, behavior }: CatWalkRigProps) {
         {/* body */}
         <g className="rig-body">
           <ellipse cx="104" cy="86" rx="54" ry="27" fill={coat} stroke={outline} strokeWidth="5" />
-          {isBuddy2 ? (
+          {isBiscuit ? (
             /* orange saddle over the back */
             <path
               d="M62 74 C74 58 138 58 150 76 C150 90 138 96 104 96 C74 96 62 90 62 74Z"
@@ -92,8 +92,8 @@ export function CatWalkRig({ pet, markings, behavior }: CatWalkRigProps) {
         {/* near legs (in front of body) */}
         <Leg className="leg-back-near" x={78} coat={coat} />
         <Leg className="leg-front-near" x={154} coat={coat} />
-        {/* Buddy1's black toe spots on the near front paw */}
-        {!isBuddy2 && (
+        {/* Mochi's black toe spots on the near front paw */}
+        {!isBiscuit && (
           <>
             <circle cx="157" cy="132" r="2" fill="#3d3a36" />
             <circle cx="162" cy="133" r="1.7" fill="#3d3a36" />
@@ -110,7 +110,7 @@ export function CatWalkRig({ pet, markings, behavior }: CatWalkRigProps) {
           {/* head */}
           <circle cx="167" cy="74" r="25" fill={coat} stroke={outline} strokeWidth="5" />
           {/* markings on the head */}
-          {isBuddy2 ? (
+          {isBiscuit ? (
             /* orange cap over ears + forehead down to the eyes */
             <path d="M147 66 C150 46 188 44 192 64 C192 74 186 78 167 78 C150 78 146 74 147 66Z" fill={mark} opacity="0.96" />
           ) : (

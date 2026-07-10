@@ -15,9 +15,9 @@ describe("App companion controls", () => {
     } as never;
     const container = document.createElement("div"); document.body.appendChild(container); const root = createRoot(container);
     await act(async () => root.render(<App />));
-    await act(async () => { container.querySelector<HTMLButtonElement>('[aria-label="Walk Buddy1"]')?.click(); });
-    expect(pushCommand).toHaveBeenNthCalledWith(1, { behavior: "walk", target: "selected", id: "buddy1", hold: true });
-    await act(async () => { container.querySelector<HTMLButtonElement>('[aria-label="Sync behavior from Buddy1"]')?.click(); });
+    await act(async () => { container.querySelector<HTMLButtonElement>('[aria-label="Walk Mochi"]')?.click(); });
+    expect(pushCommand).toHaveBeenNthCalledWith(1, { behavior: "walk", target: "selected", id: "mochi", hold: true });
+    await act(async () => { container.querySelector<HTMLButtonElement>('[aria-label="Sync behavior from Mochi"]')?.click(); });
     expect(pushCommand).toHaveBeenLastCalledWith({ behavior: "walk", target: "all", hold: true });
     await act(async () => root.unmount()); container.remove();
   });

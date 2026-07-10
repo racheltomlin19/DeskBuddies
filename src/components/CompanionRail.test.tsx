@@ -42,7 +42,7 @@ describe("CompanionRail", () => {
 
   it("spawns a pet after a bubble drag crosses six pixels", async () => {
     const { onSpawnDrag } = await renderRail();
-    const dragBubble = container!.querySelector<HTMLElement>('[aria-label="Drag Buddy1 to desktop"]')!;
+    const dragBubble = container!.querySelector<HTMLElement>('[aria-label="Drag Mochi to desktop"]')!;
 
     await act(async () => {
       dragBubble.dispatchEvent(pointer("pointerdown", 10, 10));
@@ -50,12 +50,12 @@ describe("CompanionRail", () => {
       dragBubble.dispatchEvent(pointer("pointerup", 20, 20));
     });
 
-    expect(onSpawnDrag).toHaveBeenCalledWith("buddy1");
+    expect(onSpawnDrag).toHaveBeenCalledWith("mochi");
   });
 
   it("does not start a drag from the hide button", async () => {
     const { onSpawnDrag, onToggleSummoned } = await renderRail();
-    const hideButton = container!.querySelector<HTMLElement>('[aria-label="Hide Buddy1"]')!;
+    const hideButton = container!.querySelector<HTMLElement>('[aria-label="Hide Mochi"]')!;
 
     await act(async () => {
       hideButton.dispatchEvent(pointer("pointerdown", 10, 10));
@@ -65,6 +65,6 @@ describe("CompanionRail", () => {
     });
 
     expect(onSpawnDrag).not.toHaveBeenCalled();
-    expect(onToggleSummoned).toHaveBeenCalledWith("buddy1", false);
+    expect(onToggleSummoned).toHaveBeenCalledWith("mochi", false);
   });
 });
