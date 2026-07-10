@@ -32,7 +32,7 @@
         "to": "icon.png"
       },
       {
-        "from": "dist",
+        "from": "build-output",
         "to": "dist"
       }
     ],

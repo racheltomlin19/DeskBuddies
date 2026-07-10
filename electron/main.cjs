@@ -137,7 +137,8 @@ function loadPage(win, page) {
   if (isDev) {
     win.loadURL(`${process.env.VITE_DEV_SERVER_URL}/${page}`);
   } else {
-    win.loadFile(path.join(__dirname, "..", "dist", page));
+    // dist/ is packaged as extraResources (real files, not in asar)
+    win.loadFile(path.join(process.resourcesPath, "dist", page));
   }
 }
 
@@ -145,7 +146,7 @@ function loadPopout(win, tab) {
   if (isDev) {
     win.loadURL(`${process.env.VITE_DEV_SERVER_URL}/index.html?popout=${tab}`);
   } else {
-    win.loadFile(path.join(__dirname, "..", "dist", "index.html"), { search: `popout=${tab}` });
+    win.loadFile(path.join(process.resourcesPath, "dist", "index.html"), { search: `popout=${tab}` });
   }
 }
 

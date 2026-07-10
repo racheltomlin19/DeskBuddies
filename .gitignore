@@ -8,3 +8,4 @@ npm-debug.log*
 *.local
 .deskbuddies-vite.*.log
 .env
+build-output/

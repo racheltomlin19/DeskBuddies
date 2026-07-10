@@ -10,7 +10,7 @@ export default defineConfig({
     strictPort: false
   },
   build: {
-    outDir: "dist",
+    outDir: "build-output",
     emptyOutDir: true,
     rollupOptions: {
       input: {
