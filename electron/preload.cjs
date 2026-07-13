@@ -2,8 +2,11 @@ const { contextBridge, ipcRenderer } = require("electron");
 
 contextBridge.exposeInMainWorld("deskBuddies", {
   // Panel window controls
-  minimizeToTray: () => ipcRenderer.invoke("panel:minimizeToTray"),
+  minimize: () => ipcRenderer.invoke("panel:minimize"),
+  // Compatibility for older renderer bundles; this now performs a real minimize.
+  minimizeToTray: () => ipcRenderer.invoke("panel:minimize"),
   close: () => ipcRenderer.invoke("panel:close"),
+  quit: () => ipcRenderer.invoke("app:quit"),
   setAlwaysOnTop: (enabled) => ipcRenderer.invoke("panel:alwaysOnTop", enabled),
   setLaunchAtLogin: (enabled) => ipcRenderer.invoke("app:launchAtLogin", enabled),
   getPanelDockState: () => ipcRenderer.invoke("panel:getDockState"),

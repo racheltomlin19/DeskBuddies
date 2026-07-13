@@ -1,25 +1,52 @@
 import { describe, expect, it } from "vitest";
 import {
+  RAIL_WIDTH,
   canResizePanel,
   dockPanelState,
+  getSnapCandidate,
   getDockedBounds,
+  isDockRearmed,
   normalizePanelState,
-  restorePanelState,
-  snapPanelBounds
+  restorePanelState
 } from "./panelDocking.cjs";
 
 const workArea = { x: 0, y: 0, width: 1920, height: 1040 };
 
 describe("panel docking", () => {
-  it("snaps only near left and right work-area edges", () => {
-    expect(snapPanelBounds({ x: 12, y: 100, width: 350, height: 720 }, workArea)).toBe("left");
-    expect(snapPanelBounds({ x: 1565, y: 100, width: 350, height: 720 }, workArea)).toBe("right");
-    expect(snapPanelBounds({ x: 600, y: 100, width: 350, height: 720 }, workArea)).toBeNull();
+  it("selects the nearest qualifying edge within the 32 px threshold", () => {
+    expect(getSnapCandidate({ x: 32, y: 100, width: 350, height: 720 }, workArea)).toBe("left");
+    expect(getSnapCandidate({ x: 1538, y: 100, width: 350, height: 720 }, workArea)).toBe("right");
+    expect(getSnapCandidate({ x: 30, y: 100, width: 1865, height: 720 }, workArea)).toBe("right");
+    expect(getSnapCandidate({ x: 33, y: 100, width: 350, height: 720 }, workArea)).toBeNull();
+  });
+
+  it("supports negative multi-monitor coordinates", () => {
+    const negativeWorkArea = { x: -1920, y: -40, width: 1920, height: 1040 };
+    expect(getSnapCandidate({ x: -1890, y: 100, width: 350, height: 720 }, negativeWorkArea)).toBe("left");
+    expect(getSnapCandidate({ x: -382, y: 100, width: 350, height: 720 }, negativeWorkArea)).toBe("right");
+  });
+
+  it("uses a caller-provided snap threshold", () => {
+    const bounds = { x: 40, y: 100, width: 350, height: 720 };
+    expect(getSnapCandidate(bounds, workArea)).toBeNull();
+    expect(getSnapCandidate(bounds, workArea, 40)).toBe("left");
+  });
+
+  it("rearms docking only after clearing both horizontal edges by 64 px", () => {
+    expect(isDockRearmed({ x: 64, y: 100, width: 350, height: 720 }, workArea)).toBe(true);
+    expect(isDockRearmed({ x: 63, y: 100, width: 350, height: 720 }, workArea)).toBe(false);
+    expect(isDockRearmed({ x: 1506, y: 100, width: 350, height: 720 }, workArea)).toBe(true);
+    expect(isDockRearmed({ x: 1507, y: 100, width: 350, height: 720 }, workArea)).toBe(false);
+
+    const negativeWorkArea = { x: -1920, y: 0, width: 1920, height: 1040 };
+    expect(isDockRearmed({ x: -1856, y: 100, width: 350, height: 720 }, negativeWorkArea)).toBe(true);
   });
 
   it("calculates full and collapsed native bounds", () => {
+    expect(RAIL_WIDTH).toBe(80);
     expect(getDockedBounds("left", false, workArea)).toEqual({ x: 0, y: 0, width: 350, height: 1040 });
-    expect(getDockedBounds("right", true, workArea)).toEqual({ x: 1860, y: 0, width: 60, height: 1040 });
+    expect(getDockedBounds("left", true, workArea)).toEqual({ x: 0, y: 0, width: 80, height: 1040 });
+    expect(getDockedBounds("right", true, workArea)).toEqual({ x: 1840, y: 0, width: 80, height: 1040 });
   });
 
   it("allows native resizing only while undocked", () => {

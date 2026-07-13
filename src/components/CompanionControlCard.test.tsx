@@ -92,4 +92,16 @@ describe("CompanionControlCard", () => {
       "Pounce Yorkie"
     );
   });
+
+  it("shows authored personality copy without changing action labels", () => {
+    const handlers = {
+      onHeldMode: vi.fn(), onAction: vi.fn(), onUpdatePet: vi.fn(), onSyncBehavior: vi.fn()
+    };
+    const markup = renderToStaticMarkup(<CompanionControlCard pet={mochi} heldMode={null} {...handlers} />);
+
+    expect(markup).toContain('class="companion-description"');
+    expect(markup).toContain("An alert, watchful Japanese Bobtail who keeps a curious eye on your desktop.");
+    expect(markup).toContain('aria-label="Walk Mochi"');
+    expect(markup).toContain('aria-label="Nap Mochi"');
+  });
 });

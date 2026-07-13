@@ -45,29 +45,26 @@ export function CatWalkRig({ pet, markings, behavior }: CatWalkRigProps) {
     <svg className="pet-svg sticker-pet" viewBox="0 0 200 150" role="img" aria-label={`${pet.name} ${pet.breedLabel}`}>
       <ellipse className="soft-shadow" cx="100" cy="140" rx="66" ry="8" />
 
-      <g className={`rig-cat ${poseClassFor(behavior)}`}>
+      <g className={`rig-cat ${isBiscuit ? "maine-coon" : "japanese-bobtail"} ${poseClassFor(behavior)}`}>
         {/* tail, behind the body, sweeps up off the rump on the left */}
-        <g className="rig-tail">
+        <g className={`rig-tail ${isBiscuit ? "fluffy-tail" : "bobtail-tail"}`}>
           <path
-            d="M56 92 C30 92 20 70 26 50"
+            d={isBiscuit ? "M56 92 C25 94 12 67 25 40" : "M56 92 C42 92 37 84 42 77"}
             fill="none"
             stroke={outline}
-            strokeWidth="17"
+            strokeWidth={isBiscuit ? 23 : 18}
             strokeLinecap="round"
           />
           <path
-            d="M56 92 C30 92 20 70 26 50"
+            d={isBiscuit ? "M56 92 C25 94 12 67 25 40" : "M56 92 C42 92 37 84 42 77"}
             fill="none"
             stroke={isBiscuit ? mark : mark}
-            strokeWidth="11"
+            strokeWidth={isBiscuit ? 16 : 11}
             strokeLinecap="round"
           />
           {/* Mochi: white tail tip. Biscuit: keep orange to the tip. */}
-          {!isBiscuit && (
-            <path d="M27 56 C26 53 26 52 26 50" fill="none" stroke={coat} strokeWidth="11" strokeLinecap="round" />
-          )}
           {/* tabby stripe rings on the tail */}
-          <path d="M46 92 L44 84 M35 88 L31 81 M27 76 L22 71" stroke={stripe} strokeWidth="3" strokeLinecap="round" />
+          {isBiscuit && <path d="M45 91 L41 82 M32 87 L27 78 M23 69 L16 64 M22 51 L14 47" stroke={stripe} strokeWidth="3" strokeLinecap="round" />}
         </g>
 
         {/* far legs (slightly darker, behind body) */}
@@ -84,7 +81,10 @@ export function CatWalkRig({ pet, markings, behavior }: CatWalkRigProps) {
               fill={mark}
               opacity="0.96"
             />
-          ) : null}
+          ) : <>
+            <path className="calico-patch" d="M62 69 C76 59 88 62 92 78 C85 91 72 94 61 87Z" fill={mark} />
+            <path className="calico-patch" d="M111 62 C130 61 145 67 150 78 C143 88 132 92 119 89Z" fill={stripe} />
+          </>}
           {/* subtle belly line */}
           <path d="M66 100 C86 108 122 108 142 100" fill="none" stroke={outline} strokeWidth="2.5" opacity="0.25" />
         </g>
@@ -102,6 +102,7 @@ export function CatWalkRig({ pet, markings, behavior }: CatWalkRigProps) {
 
         {/* head, front-right */}
         <g className="rig-head">
+          {isBiscuit && <g className="ear-tufts" fill={stripe}><path d="M150 32 L152 19 L158 34Z" /><path d="M185 32 L191 18 L191 36Z" /></g>}
           {/* ears */}
           <path d="M150 54 L150 30 L168 46Z" fill={coat} stroke={outline} strokeWidth="5" strokeLinejoin="round" />
           <path d="M182 52 L188 30 L196 50Z" fill={coat} stroke={outline} strokeWidth="5" strokeLinejoin="round" />
@@ -109,10 +110,14 @@ export function CatWalkRig({ pet, markings, behavior }: CatWalkRigProps) {
           <path d="M185 46 L188 37 L192 47Z" fill={innerEarPink} />
           {/* head */}
           <circle cx="167" cy="74" r="25" fill={coat} stroke={outline} strokeWidth="5" />
+          {isBiscuit && <path className="maine-coon-ruff" d="M148 82 L153 104 L163 96 L171 108 L181 95 L190 100 L188 80 C183 91 177 96 168 97 C159 96 153 91 148 82Z" fill={coat} stroke={outline} strokeWidth="3" strokeLinejoin="round" />}
           {/* markings on the head */}
           {isBiscuit ? (
-            /* orange cap over ears + forehead down to the eyes */
-            <path d="M147 66 C150 46 188 44 192 64 C192 74 186 78 167 78 C150 78 146 74 147 66Z" fill={mark} opacity="0.96" />
+            <>
+              {/* orange crown stops above the eye; stripes carry the tabby pattern down the face */}
+              <path className="orange-crown" d="M148 60 C153 45 185 43 191 59 C180 56 158 56 148 60Z" fill={mark} opacity="0.96" />
+              <path className="tabby-face-stripes" d="M160 55 L158 48 M168 55 L168 47 M176 55 L178 48 M151 67 L158 65 M151 74 L158 72 M188 66 L182 64" fill="none" stroke={stripe} strokeWidth="2.5" strokeLinecap="round" />
+            </>
           ) : (
             /* gray crown patch between the ears only */
             <path d="M156 52 C160 44 178 44 182 52 C182 60 174 62 168 62 C160 62 156 60 156 52Z" fill={mark} />
@@ -121,7 +126,7 @@ export function CatWalkRig({ pet, markings, behavior }: CatWalkRigProps) {
           <circle cx="176" cy="72" r="4.6" fill={eye} />
           <circle cx="177.5" cy="70.5" r="1.4" fill="#fffdf7" />
           {/* muzzle + nose */}
-          <path d="M188 80 C194 82 194 88 188 89" fill={coat} stroke={outline} strokeWidth="3.5" strokeLinejoin="round" />
+          <path className={isBiscuit ? "cream-muzzle" : undefined} d="M188 80 C194 82 194 88 188 89" fill={coat} stroke={outline} strokeWidth="3.5" strokeLinejoin="round" />
           <path d="M190 83 l4 2 -4 2Z" fill={nosePink} />
           {/* mouth */}
           <path d="M188 90 C184 93 180 93 177 91" fill="none" stroke={face} strokeWidth="2.6" strokeLinecap="round" />

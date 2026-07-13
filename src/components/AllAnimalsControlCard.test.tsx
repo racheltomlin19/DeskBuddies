@@ -96,15 +96,36 @@ describe("AllAnimalsControlCard", () => {
     expect(onUpdateSettings).toHaveBeenCalledWith({ showNames: false });
   });
 
-  it("disables every group control when no pets are summoned", async () => {
+  it("keeps global settings reversible when no pets are summoned", async () => {
+    const onUpdateSettings = vi.fn();
     container = document.createElement("div"); document.body.appendChild(container); root = createRoot(container);
-    await act(async () => root!.render(<AllAnimalsControlCard pets={[]} settings={initialSettings} onAction={vi.fn()} onUpdateAll={vi.fn()} onUpdateSettings={vi.fn()} />));
-    for (const label of ["Pounce all cats", "Screen roaming", "Ground roaming", "Follow cursor", "Follow pounce", "Physics", "Name tags"]) {
-      expect(container!.querySelector<HTMLButtonElement>(`[aria-label="${label}"]`)?.disabled).toBe(true);
+    await act(async () => root!.render(<AllAnimalsControlCard pets={[]} settings={{ ...initialSettings, followMode: true }} onAction={vi.fn()} onUpdateAll={vi.fn()} onUpdateSettings={onUpdateSettings} />));
+
+    const follow = container!.querySelector<HTMLButtonElement>('[aria-label="Follow cursor"]');
+    expect(follow?.disabled).toBe(false);
+    expect(follow?.getAttribute("aria-pressed")).toBe("true");
+    await act(async () => follow?.click());
+    expect(onUpdateSettings).toHaveBeenCalledWith({ followMode: false });
+
+    for (const label of ["Screen roaming", "Ground roaming", "Follow pounce", "Physics", "Name tags"]) {
+      expect(container!.querySelector<HTMLButtonElement>(`[aria-label="${label}"]`)?.disabled).toBe(false);
     }
+    expect(container!.querySelector<HTMLButtonElement>('[aria-label="Pounce all cats"]')?.disabled).toBe(true);
     for (const label of ["All animals Size", "All animals Pace", "All animals Energy"]) {
       expect(container!.querySelector<HTMLInputElement>(`[aria-label="${label}"]`)?.disabled).toBe(true);
     }
+  });
+
+  it("exposes the current state of global setting buttons", async () => {
+    container = document.createElement("div"); document.body.appendChild(container); root = createRoot(container);
+    await act(async () => root!.render(<AllAnimalsControlCard pets={[]} settings={{ ...initialSettings, roamMode: "ground", followMode: true, pounce: false, physics: true, showNames: false }} onAction={vi.fn()} onUpdateAll={vi.fn()} onUpdateSettings={vi.fn()} />));
+
+    expect(container!.querySelector('[aria-label="Screen roaming"]')?.getAttribute("aria-pressed")).toBe("false");
+    expect(container!.querySelector('[aria-label="Ground roaming"]')?.getAttribute("aria-pressed")).toBe("true");
+    expect(container!.querySelector('[aria-label="Follow cursor"]')?.getAttribute("aria-pressed")).toBe("true");
+    expect(container!.querySelector('[aria-label="Follow pounce"]')?.getAttribute("aria-pressed")).toBe("false");
+    expect(container!.querySelector('[aria-label="Physics"]')?.getAttribute("aria-pressed")).toBe("true");
+    expect(container!.querySelector('[aria-label="Name tags"]')?.getAttribute("aria-pressed")).toBe("false");
   });
 
   it("uses shared aggregate values and labels mixed values", async () => {

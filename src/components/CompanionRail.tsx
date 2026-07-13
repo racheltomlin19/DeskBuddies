@@ -1,21 +1,92 @@
-import { Check, Plus } from "lucide-react";
-import { useRef, useState } from "react";
+import { useRef, useState, type PointerEvent } from "react";
 import { PetAvatar } from "../PetAvatar";
 import type { PetProfile } from "../types";
 
-export interface CompanionRailProps { companions: PetProfile[]; onSpawnDrag: (id: string) => void; onToggleSummoned: (id: string, summoned: boolean) => void; }
-const THRESHOLD = 6;
-
-export function CompanionRail({ companions, onSpawnDrag, onToggleSummoned }: CompanionRailProps) {
-  return <aside className="companion-rail" aria-label="Companion rail">{companions.map((pet) => <RailPet key={pet.id} pet={pet} onSpawnDrag={onSpawnDrag} onToggleSummoned={onToggleSummoned} />)}</aside>;
+export interface CompanionRailProps {
+  companions: PetProfile[];
+  onSpawnDrag: (id: string) => void;
+  onToggleSummoned: (id: string, summoned: boolean) => void;
 }
 
-function RailPet({ pet, onSpawnDrag, onToggleSummoned }: { pet: PetProfile; onSpawnDrag: (id: string) => void; onToggleSummoned: (id: string, summoned: boolean) => void }) {
-  const [dragging, setDragging] = useState(false); const origin = useRef<{x:number;y:number}|null>(null); const active = useRef(false);
-  const end = (cancelled: boolean) => { if (active.current && !cancelled) onSpawnDrag(pet.id); active.current = false; origin.current = null; setDragging(false); };
-  return <div className="rail-pet">
-    <div className={`drag-bubble ${dragging ? "dragging" : ""}`} aria-label={`Drag ${pet.name} to desktop`} style={{ touchAction: "none" }} onPointerDown={(e) => { origin.current = { x: e.clientX, y: e.clientY }; try { e.currentTarget.setPointerCapture(e.pointerId); } catch {} }} onPointerMove={(e) => { if (origin.current && Math.hypot(e.clientX-origin.current.x,e.clientY-origin.current.y)>THRESHOLD) { active.current=true; setDragging(true); } }} onPointerUp={(e) => { try { e.currentTarget.releasePointerCapture(e.pointerId); } catch {} end(false); }} onPointerCancel={() => end(true)}><PetAvatar pet={pet} compact /></div>
-    <button type="button" aria-label={`${pet.summoned ? "Hide" : "Summon"} ${pet.name}`} onPointerDown={(e) => e.stopPropagation()} onClick={() => onToggleSummoned(pet.id, !pet.summoned)}>{pet.summoned ? <Check /> : <Plus />}</button>
-    <span>{pet.name}</span>
-  </div>;
+const DRAG_THRESHOLD = 6;
+
+export function CompanionRail({ companions, onSpawnDrag, onToggleSummoned }: CompanionRailProps) {
+  return (
+    <aside className="companion-rail" aria-label="Companion rail">
+      {companions.map((pet) => (
+        <RailPet key={pet.id} pet={pet} onSpawnDrag={onSpawnDrag} onToggleSummoned={onToggleSummoned} />
+      ))}
+    </aside>
+  );
+}
+
+function RailPet({ pet, onSpawnDrag, onToggleSummoned }: {
+  pet: PetProfile;
+  onSpawnDrag: (id: string) => void;
+  onToggleSummoned: (id: string, summoned: boolean) => void;
+}) {
+  const [dragging, setDragging] = useState(false);
+  const origin = useRef<{ x: number; y: number } | null>(null);
+  const crossedThreshold = useRef(false);
+  const suppressClick = useRef(false);
+
+  const finishDrag = (event: PointerEvent<HTMLSpanElement>, cancelled: boolean) => {
+    try { event.currentTarget.releasePointerCapture(event.pointerId); } catch {}
+
+    if (!cancelled && crossedThreshold.current) {
+      suppressClick.current = true;
+      onSpawnDrag(pet.id);
+    } else {
+      suppressClick.current = false;
+    }
+
+    origin.current = null;
+    crossedThreshold.current = false;
+    setDragging(false);
+  };
+
+  return (
+    <button
+      type="button"
+      className="rail-pet"
+      aria-label={`${pet.summoned ? "Hide" : "Summon"} ${pet.name} ${pet.summoned ? "from" : "to"} desktop`}
+      aria-pressed={pet.summoned}
+      title={`${pet.summoned ? "Hide" : "Summon"} ${pet.name} ${pet.summoned ? "from" : "to"} desktop`}
+      onClick={() => {
+        if (suppressClick.current) {
+          suppressClick.current = false;
+          return;
+        }
+        onToggleSummoned(pet.id, !pet.summoned);
+      }}
+    >
+      <span
+        className={`drag-bubble${dragging ? " dragging" : ""}`}
+        aria-label={`Drag ${pet.name} to desktop`}
+        title={`Drag ${pet.name} to desktop`}
+        onPointerDown={(event) => {
+          origin.current = { x: event.clientX, y: event.clientY };
+          crossedThreshold.current = false;
+          suppressClick.current = false;
+          try { event.currentTarget.setPointerCapture(event.pointerId); } catch {}
+        }}
+        onPointerMove={(event) => {
+          if (!origin.current || crossedThreshold.current) return;
+          const distance = Math.hypot(event.clientX - origin.current.x, event.clientY - origin.current.y);
+          if (distance > DRAG_THRESHOLD) {
+            crossedThreshold.current = true;
+            setDragging(true);
+          }
+        }}
+        onPointerUp={(event) => finishDrag(event, false)}
+        onPointerCancel={(event) => finishDrag(event, true)}
+      >
+        <PetAvatar pet={pet} compact />
+      </span>
+      <span className="rail-copy">
+        <span className="rail-name">{pet.name}</span>
+        <span className="rail-status">{pet.summoned ? "On desktop" : "Hidden"}</span>
+      </span>
+    </button>
+  );
 }

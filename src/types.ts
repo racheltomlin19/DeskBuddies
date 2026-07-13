@@ -3,6 +3,7 @@ export type Species = "cat" | "dog" | "capybara" | "elephant" | "raccoon" | "mon
 export type Pattern =
   | "patch-cat"
   | "calico"
+  | "calico-bobtail"
   | "keyboard-buddy"
   | "capybara"
   | "snack-capybara"
@@ -11,6 +12,7 @@ export type Pattern =
   | "blue-monster"
   | "punching-bag"
   | "tabby"
+  | "cream-orange-tabby"
   | "tuxedo"
   | "yorkie";
 
@@ -63,6 +65,7 @@ export interface PetProfile {
   avatar: AvatarId;
   pattern: Pattern;
   breedLabel: string;
+  description?: string;
   primaryColor: string;
   secondaryColor: string;
   accentColor: string;

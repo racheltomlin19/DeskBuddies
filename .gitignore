@@ -4,6 +4,7 @@ release/
 .vite/
 references/
 .worktrees/
+.superpowers/
 npm-debug.log*
 *.local
 .deskbuddies-vite.*.log

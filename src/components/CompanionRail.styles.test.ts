@@ -9,11 +9,22 @@ function rule(selector: string) {
 }
 
 describe("companion rail layout", () => {
-  it("uses a horizontal rail except in the collapsed native dock", () => {
-    expect(rule(".companion-rail")).toContain("display:flex");
-    expect(rule(".companion-rail")).toContain("flex:00auto");
-    expect(rule(".companion-controls-panel")).toContain("flex:00auto");
-    expect(rule(".companion-controls-panel")).toContain("overflow:visible");
-    expect(rule(".workspace.docked.collapsed .companion-rail")).toContain("display:grid");
+  it("uses a two-column wrapping chip grid without horizontal overflow", () => {
+    expect(rule(".companion-rail")).toContain("display:grid");
+    expect(rule(".companion-rail")).toContain("grid-template-columns:repeat(2,minmax(0,1fr))");
+    expect(rule(".companion-rail")).toContain("overflow-x:hidden");
+    expect(rule(".drag-bubble")).toContain("width:36px");
+    expect(rule(".drag-bubble")).toContain("height:36px");
+    expect(rule(".rail-pet:focus-visible")).toContain("outline:");
+    expect(rule(".rail-pet[aria-pressed=\"true\"]")).toContain("border-color:");
+  });
+
+  it("retains a portrait-only 68px collapsed rail", () => {
+    expect(rule(".app-shell.docked.collapsed .companion-rail")).toContain("grid-template-columns:68px");
+    expect(rule(".app-shell.docked.collapsed .rail-pet")).toContain("width:68px");
+    expect(rule(".app-shell.docked.collapsed .rail-copy")).toContain("display:none");
+    expect(rule(".app-shell.docked.collapsed .drag-bubble")).toContain("width:44px");
+    expect(rule(".app-shell.docked.collapsed")).toContain("background:transparent");
+    expect(styles).toContain("@media (prefers-reduced-motion: reduce)");
   });
 });

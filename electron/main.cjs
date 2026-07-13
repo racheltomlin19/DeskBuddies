@@ -9,9 +9,10 @@ const {
   canResizePanel,
   dockPanelState,
   getDockedBounds,
+  getSnapCandidate,
+  isDockRearmed,
   normalizePanelState,
-  restorePanelState,
-  snapPanelBounds
+  restorePanelState
 } = require("./panelDocking.cjs");
 const { getPrimaryOverlayBounds } = require("./overlayBounds.cjs");
 
@@ -21,9 +22,12 @@ let tray;
 let followMenuItem = null;
 let cursorTimer = null;
 let panelDockState = null;
+let panelDockSettleTimer = null;
+let panelDockRearmed = true;
 let applyingPanelDockBounds = false;
 let latestSnapshot = { companions: [], settings: {} };
 const popoutWindows = new Map();
+const PANEL_DOCK_SETTLE_MS = 180;
 
 const isDev = Boolean(process.env.VITE_DEV_SERVER_URL);
 
@@ -54,6 +58,13 @@ function savePanelDockState() {
 
 function notifyPanelDockState() {
   panelWindow?.webContents.send("panel:dockState", panelDockState);
+}
+
+function clearPanelDockSettleTimer() {
+  if (panelDockSettleTimer) {
+    clearTimeout(panelDockSettleTimer);
+    panelDockSettleTimer = null;
+  }
 }
 
 function applyPanelDockBounds(bounds) {
@@ -109,10 +120,12 @@ function setPanelCollapsed(collapsed) {
 }
 
 function undockPanel() {
+  clearPanelDockSettleTimer();
   if (!panelDockState) {
     return panelDockState;
   }
 
+  panelDockRearmed = false;
   panelDockState = { ...panelDockState, dockSide: null, collapsed: false, displayId: null };
   applyPanelDockState(panelDockState.floatingBounds);
   persistPanelDockState();
@@ -121,6 +134,7 @@ function undockPanel() {
 }
 
 function dockPanel(side) {
+  clearPanelDockSettleTimer();
   if (!panelWindow || panelWindow.isDestroyed() || (side !== "left" && side !== "right")) {
     return panelDockState;
   }
@@ -278,25 +292,44 @@ function createPanelWindow() {
   persistPanelDockState();
   panelWindow.webContents.on("did-finish-load", notifyPanelDockState);
 
-  panelWindow.on("moved", () => {
+  panelWindow.on("move", () => {
     if (applyingPanelDockBounds || panelDockState.dockSide) {
       return;
     }
-    const floatingBounds = panelWindow.getBounds();
-    const display = screen.getDisplayMatching(floatingBounds);
-    const dockSide = snapPanelBounds(floatingBounds, display.workArea);
-    if (!dockSide) {
-      persistPanelDockState();
-      return;
+    const observedBounds = panelWindow.getBounds();
+    const observedDisplay = screen.getDisplayMatching(observedBounds);
+    if (!panelDockRearmed && isDockRearmed(observedBounds, observedDisplay.workArea)) {
+      panelDockRearmed = true;
     }
-    panelDockState = dockPanelState(panelDockState, dockSide, display, floatingBounds);
-    applyPanelDockState(getDockedBounds(dockSide, true, display.workArea));
-    persistPanelDockState();
-    notifyPanelDockState();
+    clearPanelDockSettleTimer();
+    panelDockSettleTimer = setTimeout(() => {
+      panelDockSettleTimer = null;
+      if (!panelWindow || panelWindow.isDestroyed() || panelDockState.dockSide) {
+        return;
+      }
+
+      const currentBounds = panelWindow.getBounds();
+      const display = screen.getDisplayMatching(currentBounds);
+      if (!panelDockRearmed) {
+        persistPanelDockState();
+        return;
+      }
+
+      const dockSide = getSnapCandidate(currentBounds, display.workArea);
+      if (!dockSide) {
+        persistPanelDockState();
+        return;
+      }
+      panelDockState = dockPanelState(panelDockState, dockSide, display, currentBounds);
+      applyPanelDockState(getDockedBounds(dockSide, true, display.workArea));
+      persistPanelDockState();
+      notifyPanelDockState();
+    }, PANEL_DOCK_SETTLE_MS);
   });
   panelWindow.on("resized", persistPanelDockState);
 
   panelWindow.on("close", (event) => {
+    clearPanelDockSettleTimer();
     if (!app.isQuiting) {
       event.preventDefault();
       persistPanelDockState();
@@ -312,6 +345,12 @@ function showPanel() {
   }
   panelWindow.show();
   panelWindow.focus();
+}
+
+function quitApp() {
+  clearPanelDockSettleTimer();
+  app.isQuiting = true;
+  app.quit();
 }
 
 function createTray() {
@@ -341,10 +380,7 @@ function createTray() {
     { type: "separator" },
     {
       label: "Quit",
-      click: () => {
-        app.isQuiting = true;
-        app.quit();
-      }
+      click: quitApp
     }
   ]);
   tray.setContextMenu(menu);
@@ -361,6 +397,7 @@ app.whenReady().then(() => {
   // Keep the overlay aligned to the primary work area as displays change.
   screen.on("display-added", updateOverlayBounds);
   screen.on("display-removed", updateOverlayBounds);
+  screen.on("display-metrics-changed", updateOverlayBounds);
 
   globalShortcut.register("Control+Alt+P", () => {
     showPanel();
@@ -387,6 +424,10 @@ app.on("before-quit", () => {
 });
 
 app.on("will-quit", () => {
+  clearPanelDockSettleTimer();
+  screen.removeListener("display-added", updateOverlayBounds);
+  screen.removeListener("display-removed", updateOverlayBounds);
+  screen.removeListener("display-metrics-changed", updateOverlayBounds);
   globalShortcut.unregisterAll();
   if (cursorTimer) {
     clearInterval(cursorTimer);
@@ -501,13 +542,18 @@ ipcMain.on("overlay:setInteractive", (_event, interactive) => {
   overlayWindow?.setIgnoreMouseEvents(!interactive, { forward: true });
 });
 
-ipcMain.handle("panel:minimizeToTray", () => {
-  panelWindow?.hide();
+ipcMain.handle("panel:minimize", () => {
+  panelWindow?.minimize();
 });
+
+// Compatibility with older preload bundles.
+ipcMain.handle("panel:minimizeToTray", () => panelWindow?.minimize());
 
 ipcMain.handle("panel:close", () => {
   panelWindow?.hide();
 });
+
+ipcMain.handle("app:quit", quitApp);
 
 ipcMain.handle("panel:alwaysOnTop", (_event, enabled) => {
   panelWindow?.setAlwaysOnTop(Boolean(enabled), enabled ? "floating" : "normal");

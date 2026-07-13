@@ -16,6 +16,10 @@ describe("CatWalkRig", () => {
       expect(markup).toContain(leg);
     }
     expect(markup).toContain("rig-tail");
+    expect(markup).toContain("japanese-bobtail");
+    expect(markup).toContain("bobtail-tail");
+    expect(markup).toContain("calico-patch");
+    expect(markup).toContain('aria-label="Mochi calico Japanese Bobtail"');
   });
 
   it("renders Biscuit's side rig with articulated leg groups", () => {
@@ -24,5 +28,13 @@ describe("CatWalkRig", () => {
     expect(markup).toContain("rig-cat");
     expect(markup).toContain("leg-front-near");
     expect(markup).toContain("rig-tail");
+    expect(markup).toContain("maine-coon");
+    expect(markup).toContain("fluffy-tail");
+    expect(markup).toContain("maine-coon-ruff");
+    expect(markup).toContain("ear-tufts");
+    expect(markup).toContain("tabby-face-stripes");
+    expect(markup).toContain("cream-muzzle");
+    expect(markup).not.toContain("face-mask");
+    expect(markup).toContain('aria-label="Biscuit cream-orange Maine Coon"');
   });
 });

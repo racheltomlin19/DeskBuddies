@@ -5,8 +5,10 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { initialCompanionState } from "../data";
 import { CompanionRail } from "./CompanionRail";
 
-function pointer(type: string, x: number, y: number) {
-  return new MouseEvent(type, { bubbles: true, clientX: x, clientY: y, button: 0 });
+function pointer(type: string, x: number, y: number, pointerId = 1) {
+  const event = new MouseEvent(type, { bubbles: true, clientX: x, clientY: y, button: 0 });
+  Object.defineProperty(event, "pointerId", { value: pointerId });
+  return event;
 }
 
 describe("CompanionRail", () => {
@@ -14,10 +16,8 @@ describe("CompanionRail", () => {
   let container: HTMLDivElement | undefined;
 
   afterEach(async () => {
-    if (root) {
-      await act(async () => root!.unmount());
-      root = undefined;
-    }
+    if (root) await act(async () => root!.unmount());
+    root = undefined;
     container?.remove();
     container = undefined;
   });
@@ -29,42 +29,74 @@ describe("CompanionRail", () => {
     document.body.appendChild(container);
     root = createRoot(container);
     await act(async () => {
-      root!.render(
-        <CompanionRail
-          companions={initialCompanionState.companions}
-          onSpawnDrag={onSpawnDrag}
-          onToggleSummoned={onToggleSummoned}
-        />
-      );
+      root!.render(<CompanionRail companions={initialCompanionState.companions} onSpawnDrag={onSpawnDrag} onToggleSummoned={onToggleSummoned} />);
     });
     return { onSpawnDrag, onToggleSummoned };
   }
 
-  it("spawns a pet after a bubble drag crosses six pixels", async () => {
-    const { onSpawnDrag } = await renderRail();
-    const dragBubble = container!.querySelector<HTMLElement>('[aria-label="Drag Mochi to desktop"]')!;
+  it("renders each profile as one pressed chip with name and status", async () => {
+    await renderRail();
+    const mochi = container!.querySelector<HTMLButtonElement>('[aria-label="Hide Mochi from desktop"]')!;
+    const yorkie = container!.querySelector<HTMLButtonElement>('[aria-label="Summon Yorkie to desktop"]')!;
 
-    await act(async () => {
-      dragBubble.dispatchEvent(pointer("pointerdown", 10, 10));
-      dragBubble.dispatchEvent(pointer("pointermove", 20, 20));
-      dragBubble.dispatchEvent(pointer("pointerup", 20, 20));
-    });
-
-    expect(onSpawnDrag).toHaveBeenCalledWith("mochi");
+    expect(mochi.tagName).toBe("BUTTON");
+    expect(mochi.getAttribute("aria-pressed")).toBe("true");
+    expect(mochi.textContent).toContain("Mochi");
+    expect(mochi.textContent).toContain("On desktop");
+    expect(yorkie.getAttribute("aria-pressed")).toBe("false");
+    expect(yorkie.textContent).toContain("Hidden");
+    expect(mochi.querySelectorAll("svg")).toHaveLength(1);
   });
 
-  it("does not start a drag from the hide button", async () => {
+  it("toggles from chip click and keyboard activation", async () => {
+    const { onToggleSummoned } = await renderRail();
+    const mochi = container!.querySelector<HTMLButtonElement>('[aria-label="Hide Mochi from desktop"]')!;
+
+    await act(async () => mochi.click());
+    mochi.focus();
+    await act(async () => mochi.dispatchEvent(new MouseEvent("click", { bubbles: true, detail: 0 })));
+
+    expect(document.activeElement).toBe(mochi);
+    expect(onToggleSummoned).toHaveBeenCalledTimes(2);
+    expect(onToggleSummoned).toHaveBeenNthCalledWith(1, "mochi", false);
+  });
+
+  it("captures portrait drag, spawns once, and suppresses the following click", async () => {
     const { onSpawnDrag, onToggleSummoned } = await renderRail();
-    const hideButton = container!.querySelector<HTMLElement>('[aria-label="Hide Mochi"]')!;
+    const portrait = container!.querySelector<HTMLElement>('[aria-label="Drag Mochi to desktop"]')!;
+    const chip = portrait.closest("button")!;
+    const capture = vi.fn();
+    const release = vi.fn();
+    portrait.setPointerCapture = capture;
+    portrait.releasePointerCapture = release;
 
     await act(async () => {
-      hideButton.dispatchEvent(pointer("pointerdown", 10, 10));
-      hideButton.dispatchEvent(pointer("pointermove", 20, 20));
-      hideButton.dispatchEvent(pointer("pointerup", 20, 20));
-      hideButton.click();
+      portrait.dispatchEvent(pointer("pointerdown", 10, 10, 7));
+      portrait.dispatchEvent(pointer("pointermove", 17, 10, 7));
+      portrait.dispatchEvent(pointer("pointermove", 30, 20, 7));
+      portrait.dispatchEvent(pointer("pointerup", 30, 20, 7));
+      chip.click();
+    });
+
+    expect(capture).toHaveBeenCalledWith(7);
+    expect(release).toHaveBeenCalledWith(7);
+    expect(onSpawnDrag).toHaveBeenCalledTimes(1);
+    expect(onSpawnDrag).toHaveBeenCalledWith("mochi");
+    expect(onToggleSummoned).not.toHaveBeenCalled();
+  });
+
+  it("does nothing on a cancelled portrait drag", async () => {
+    const { onSpawnDrag, onToggleSummoned } = await renderRail();
+    const portrait = container!.querySelector<HTMLElement>('[aria-label="Drag Mochi to desktop"]')!;
+
+    await act(async () => {
+      portrait.dispatchEvent(pointer("pointerdown", 10, 10));
+      portrait.dispatchEvent(pointer("pointermove", 20, 20));
+      portrait.dispatchEvent(pointer("pointercancel", 20, 20));
     });
 
     expect(onSpawnDrag).not.toHaveBeenCalled();
-    expect(onToggleSummoned).toHaveBeenCalledWith("mochi", false);
+    expect(onToggleSummoned).not.toHaveBeenCalled();
+    expect(portrait.classList.contains("dragging")).toBe(false);
   });
 });

@@ -5,8 +5,6 @@ export const COMPANION_SCHEMA_VERSION = 2;
 
 const editablePetFields: Array<keyof PetProfile> = [
   "summoned",
-  "name",
-  "breedLabel",
   "primaryColor",
   "secondaryColor",
   "accentColor",

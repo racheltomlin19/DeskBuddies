@@ -103,19 +103,21 @@ function CatPaw({ x, color, wide = false }: { x: number; color: string; wide?: b
 function MochiAvatar({ pet, behavior, compact }: Required<PetAvatarProps>) {
   const sleeping = behavior === "sleep";
   const watch = behavior === "watch";
-  const poseClass = `mochi-avatar pose-${behavior}${behavior === "walk" ? " pet-walk-body" : ""}`;
+  const poseClass = `mochi-avatar japanese-bobtail pose-${behavior}${behavior === "walk" ? " pet-walk-body" : ""}`;
   const eyeR = watch ? 8.5 : 6.5;
 
   return (
     <SvgShell label={`${pet.name} ${pet.breedLabel}`} compact={compact}>
       <g className={poseClass}>
-        {/* grey tabby tail with his white tip, wrapped around the right */}
-        <path d="M118 122 C150 127 165 111 160 88" fill="none" stroke={outline} strokeWidth="16" strokeLinecap="round" />
-        <path d="M118 122 C150 127 165 111 160 88" fill="none" stroke={pet.secondaryColor} strokeWidth="10.5" strokeLinecap="round" />
-        <path d="M161.5 96 C161 93 160.5 91 160 88" fill="none" stroke={pet.primaryColor} strokeWidth="10.5" strokeLinecap="round" />
-        <path d="M137 118 L140 109 M149 113 L154 105" stroke={pet.accentColor} strokeWidth="3.5" strokeLinecap="round" />
+        {/* compact pom tail, the defining Japanese Bobtail silhouette */}
+        <g className="bobtail-tail">
+          <path d="M120 116 C139 120 146 109 139 99" fill="none" stroke={outline} strokeWidth="18" strokeLinecap="round" />
+          <path d="M120 116 C139 120 146 109 139 99" fill="none" stroke={pet.secondaryColor} strokeWidth="11" strokeLinecap="round" />
+        </g>
         {/* chunky white sitting body */}
         <path d="M56 130 C47 101 62 78 90 78 C118 78 133 101 124 130 C110 134 70 134 56 130Z" fill={pet.primaryColor} stroke={outline} strokeWidth="5" strokeLinejoin="round" />
+        <path className="calico-patch calico-patch-orange" d="M57 99 C62 84 72 80 82 83 C85 94 78 105 63 110Z" fill={pet.secondaryColor} />
+        <path className="calico-patch calico-patch-charcoal" d="M107 83 C120 88 126 103 123 116 C111 114 104 101 107 83Z" fill={pet.accentColor} />
         {/* haunch hints */}
         <path d="M61 104 C56 112 56 121 61 128" fill="none" stroke={outline} strokeWidth="3" strokeLinecap="round" opacity="0.35" />
         <path d="M119 104 C124 112 124 121 119 128" fill="none" stroke={outline} strokeWidth="3" strokeLinecap="round" opacity="0.35" />
@@ -134,7 +136,8 @@ function MochiAvatar({ pet, behavior, compact }: Required<PetAvatarProps>) {
         {/* white head — his face is all white */}
         <path d="M54 56 C54 32 69 20 90 20 C111 20 126 32 126 56 C126 76 111 87 90 87 C69 87 54 76 54 56Z" fill={pet.primaryColor} stroke={outline} strokeWidth="5" strokeLinejoin="round" />
         {/* dark crown patch between the ears only */}
-        <path d="M70 24 C77 17 103 17 110 24 C108 34 100 39 90 38 C80 39 72 34 70 24Z" fill={pet.secondaryColor} />
+        <path className="calico-patch" d="M70 24 C77 17 103 17 110 24 C108 34 100 39 90 38 C80 39 72 34 70 24Z" fill={pet.accentColor} />
+        <path className="calico-patch" d="M99 22 C105 21 109 23 110 25 C108 31 104 34 99 36Z" fill={pet.secondaryColor} />
         <path d="M82 26 L80 19 M98 26 L100 19" stroke={pet.accentColor} strokeWidth="3.5" strokeLinecap="round" />
         {/* face */}
         {sleeping ? (
@@ -169,7 +172,7 @@ function MochiAvatar({ pet, behavior, compact }: Required<PetAvatarProps>) {
 function BiscuitAvatar({ pet, behavior, compact }: Required<PetAvatarProps>) {
   const sleeping = behavior === "sleep";
   const stretch = behavior === "stretch";
-  const poseClass = `biscuit-avatar pose-${behavior}${behavior === "walk" ? " pet-walk-body" : ""}`;
+  const poseClass = `biscuit-avatar maine-coon pose-${behavior}${behavior === "walk" ? " pet-walk-body" : ""}`;
   const eyesClosed = sleeping || stretch;
   const white = "#fffdf6";
   const headPath = "M54 56 C54 32 69 20 90 20 C111 20 126 32 126 56 C126 76 111 87 90 87 C69 87 54 76 54 56Z";
@@ -178,11 +181,11 @@ function BiscuitAvatar({ pet, behavior, compact }: Required<PetAvatarProps>) {
     <SvgShell label={`${pet.name} ${pet.breedLabel}`} compact={compact}>
       <g className={poseClass}>
         {/* orange tabby tail wrapped around the right */}
-        <path d="M118 122 C150 127 165 111 160 88" fill="none" stroke={outline} strokeWidth="16" strokeLinecap="round" />
-        <path d="M118 122 C150 127 165 111 160 88" fill="none" stroke={pet.secondaryColor} strokeWidth="10.5" strokeLinecap="round" />
+        <path className="fluffy-tail" d="M116 121 C151 132 170 111 160 82" fill="none" stroke={outline} strokeWidth="21" strokeLinecap="round" />
+        <path className="fluffy-tail" d="M116 121 C151 132 170 111 160 82" fill="none" stroke={pet.secondaryColor} strokeWidth="14" strokeLinecap="round" />
         <path d="M137 118 L140 109 M149 113 L154 105 M158 102 L164 97" stroke={pet.accentColor} strokeWidth="3.5" strokeLinecap="round" />
-        {/* slim sitting body — white chest and belly */}
-        <path d="M60 130 C52 101 65 76 90 76 C115 76 128 101 120 130 C108 134 72 134 60 130Z" fill={white} stroke={outline} strokeWidth="5" strokeLinejoin="round" />
+        {/* broad, fluffy Maine Coon body */}
+        <path d="M53 130 C44 99 60 73 90 73 C120 73 136 99 127 130 C112 135 68 135 53 130Z" fill={pet.primaryColor} stroke={outline} strokeWidth="5" strokeLinejoin="round" />
         {/* orange mantle over his shoulders and sides */}
         <path d="M64 82 C56 96 54 113 58 127 C64 124 69 108 70 88 C68 85 66 83 64 82Z" fill={pet.secondaryColor} />
         <path d="M116 82 C124 96 126 113 122 127 C116 124 111 108 110 88 C112 85 114 83 116 82Z" fill={pet.secondaryColor} />
@@ -201,14 +204,18 @@ function BiscuitAvatar({ pet, behavior, compact }: Required<PetAvatarProps>) {
         <path d="M122 34 L117 12 L98 24Z" fill={pet.secondaryColor} stroke={outline} strokeWidth="5" strokeLinejoin="round" />
         <path d="M64 28 L66 17 L76 24Z" fill={innerEarPink} />
         <path d="M116 28 L114 17 L104 24Z" fill={innerEarPink} />
-        {/* head — orange cap over the top, white lower face */}
+        {/* head — orange crown with a cream lower face */}
         <path d={headPath} fill={white} stroke={outline} strokeWidth="5" strokeLinejoin="round" />
-        <path d="M54 56 C54 32 69 20 90 20 C111 20 126 32 126 56 C126 60 125 63 123 66 C114 71 103 73 90 73 C77 73 66 71 57 66 C55 63 54 60 54 56Z" fill={pet.secondaryColor} />
+        <path className="orange-crown" d="M56 43 C61 27 73 20 90 20 C107 20 119 27 124 43 C114 39 103 37 90 37 C77 37 66 39 56 43Z" fill={pet.secondaryColor} />
         <path d={headPath} fill="none" stroke={outline} strokeWidth="5" strokeLinejoin="round" />
-        {/* tabby forehead stripes */}
-        <path d="M80 28 L78 20 M90 30 L90 21 M100 28 L102 20" stroke={pet.accentColor} strokeWidth="3.5" strokeLinecap="round" />
+        <path className="maine-coon-ruff" d="M59 73 L67 91 L75 84 L90 96 L105 84 L113 91 L121 73 C113 84 104 89 90 89 C76 89 67 84 59 73Z" fill={pet.primaryColor} stroke={outline} strokeWidth="3" strokeLinejoin="round" />
+        <g className="ear-tufts" fill={pet.accentColor}>
+          <path d="M62 14 L65 2 L70 16Z" /><path d="M110 16 L116 2 L119 15Z" />
+        </g>
+        {/* subtle orange tabby forehead and cheek stripes */}
+        <path className="tabby-face-stripes" d="M80 31 L78 23 M90 33 L90 24 M100 31 L102 23 M61 49 L69 46 M119 49 L111 46 M60 57 L68 55 M120 57 L112 55" stroke={pet.accentColor} strokeWidth="3" strokeLinecap="round" fill="none" />
         {/* white muzzle */}
-        <ellipse cx="90" cy="72" rx="19" ry="12" fill={white} />
+        <ellipse className="cream-muzzle" cx="90" cy="72" rx="19" ry="12" fill={white} />
         {/* face */}
         {eyesClosed ? (
           <>

@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
+import { renderToStaticMarkup } from "react-dom/server";
+import { createElement } from "react";
 import { customCompanions, initialCompanionState } from "./data";
+import { PetAvatar } from "./PetAvatar";
 import {
   COMPANION_SCHEMA_VERSION,
   findSelectedCompanion,
@@ -34,6 +37,37 @@ describe("companion state", () => {
     expect(biscuit.energy).toBe(0.95);
     expect(biscuit.primaryColor).toBe("#123456");
     expect(biscuit.avatar).toBe("biscuit");
+  });
+
+  it("restores canonical authored identity and descriptions instead of stale stored copy", () => {
+    const stored = initialCompanionState.companions.map((pet) =>
+      pet.id === "mochi"
+        ? { ...pet, name: "Old Mochi", breedLabel: "calico watch cat", description: "Old Mochi description" }
+        : pet.id === "biscuit"
+          ? { ...pet, name: "Old Biscuit", breedLabel: "tuxedo lounger", description: "Old Biscuit description" }
+          : pet
+    );
+
+    const normalized = normalizeCompanionState({ schemaVersion: 2, companions: stored });
+    const mochi = normalized.companions.find((pet) => pet.id === "mochi")!;
+    const biscuit = normalized.companions.find((pet) => pet.id === "biscuit")!;
+
+    expect({ name: mochi.name, breedLabel: mochi.breedLabel, description: mochi.description }).toEqual({
+      name: "Mochi",
+      breedLabel: "calico Japanese Bobtail",
+      description: "An alert, watchful Japanese Bobtail who keeps a curious eye on your desktop."
+    });
+    expect({ name: biscuit.name, breedLabel: biscuit.breedLabel, description: biscuit.description }).toEqual({
+      name: "Biscuit",
+      breedLabel: "cream-orange Maine Coon",
+      description: "A relaxed, playful Maine Coon who enjoys long naps and lively stretches."
+    });
+    expect(renderToStaticMarkup(createElement(PetAvatar, { pet: mochi, compact: true }))).toContain(
+      'aria-label="Mochi calico Japanese Bobtail"'
+    );
+    expect(renderToStaticMarkup(createElement(PetAvatar, { pet: biscuit, compact: true }))).toContain(
+      'aria-label="Biscuit cream-orange Maine Coon"'
+    );
   });
 
   it("updates only selected companions", () => {

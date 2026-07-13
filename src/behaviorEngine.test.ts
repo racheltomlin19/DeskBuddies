@@ -1,10 +1,11 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { customCompanions, initialSettings } from "./data";
 import {
   advanceCompanion,
   applyCuddle,
   applyFountain,
   applyNeighbors,
+  chanceForDelta,
   commandRuntime,
   createInitialRuntime,
   getFollowTarget,
@@ -36,6 +37,42 @@ function runtimeFor(id: string, patch: Partial<PetRuntime> = {}): PetRuntime {
 }
 
 describe("behavior engine", () => {
+  it.each(["sit", "sleep", "watch"] as const)("preserves authored %s rest eligibility in screen roam", (behavior) => {
+    const settings = { ...initialSettings, roamMode: "screen" as const };
+    const eligibleAt = 5200 + mochi.energy * 2400;
+    const random = vi.fn(() => 0);
+
+    const before = advanceCompanion(
+      runtimeFor("mochi", { behavior, stateStartedAt: 0 }), mochi, settings, bounds, 16.67, eligibleAt - 1, random
+    );
+    expect(before.behavior).toBe(behavior);
+    expect(before.targetX).toBeUndefined();
+    expect(random).not.toHaveBeenCalled();
+
+    const after = advanceCompanion(
+      runtimeFor("mochi", { behavior, stateStartedAt: 0 }), mochi, settings, bounds, 16.67, eligibleAt + 1, random
+    );
+    expect(after.behavior).toBe("walk");
+    expect(after.targetX).toBeDefined();
+  });
+
+  it("converts 60 Hz probabilities to an equal wall-time cadence at 144 Hz", () => {
+    const perFrame = 0.012;
+    const oneSecondAt60 = 1 - Math.pow(1 - chanceForDelta(perFrame, 1000 / 60), 60);
+    const oneSecondAt144 = 1 - Math.pow(1 - chanceForDelta(perFrame, 1000 / 144), 144);
+
+    expect(oneSecondAt144).toBeCloseTo(oneSecondAt60, 12);
+  });
+
+  it("handles probability and delta boundaries safely", () => {
+    expect(chanceForDelta(-1, 16.67)).toBe(0);
+    expect(chanceForDelta(2, 16.67)).toBe(1);
+    expect(chanceForDelta(0.5, 0)).toBe(0);
+    expect(chanceForDelta(0.5, -10)).toBe(0);
+    expect(chanceForDelta(Number.NaN, 16.67)).toBe(0);
+    expect(chanceForDelta(0.5, Number.POSITIVE_INFINITY)).toBe(1);
+  });
+
   it("creates bounded runtime for each summoned companion", () => {
     const runtimes = createInitialRuntime([mochi, biscuit], bounds);
 
@@ -214,6 +251,21 @@ describe("standalone pounce", () => {
 });
 
 describe("cuddle", () => {
+  it("scales its interaction gate by elapsed frame time", () => {
+    const result = applyCuddle(
+      [
+        runtimeFor("mochi", { x: 300, behavior: "idle", lastInteractionAt: 0 }),
+        runtimeFor("biscuit", { x: 360, behavior: "idle", lastInteractionAt: 0 })
+      ],
+      [mochi, biscuit],
+      bounds,
+      10000,
+      () => 0.006,
+      1000 / 144
+    );
+    expect(result.map((runtime) => runtime.behavior)).toEqual(["idle", "idle"]);
+  });
+
   it("sends one cat walking to the other when they are apart and resting", () => {
     const result = applyCuddle(
       [
@@ -249,7 +301,7 @@ describe("follow mode", () => {
     const size = getPetSize(biscuit, initialSettings);
     const target = getFollowTarget({ x: 320, y: 300 }, 0, size, bounds);
     const next = advanceCompanion(
-      runtimeFor("biscuit", { x: target.x + 4, y: target.y - 3, behavior: "watch", stateStartedAt: 0 }),
+      runtimeFor("biscuit", { x: target.x + 4, y: target.y, behavior: "watch", stateStartedAt: 0 }),
       biscuit,
       initialSettings,
       bounds,
@@ -259,15 +311,17 @@ describe("follow mode", () => {
       { active: true, pounce: false, cursor: { x: 320, y: 300 }, cursorIdleMs: 0, targetIndex: 0 }
     );
     expect(next.x).toBe(target.x + 4);
-    expect(next.y).toBe(target.y - 3);
+    expect(next.y).toBe(getGroundY(biscuit, initialSettings, bounds.height));
   });
 
 
-  it("assigns separate follow slots around the cursor", () => {
+  it("assigns separate horizontal follow slots on the ground", () => {
     const first = getFollowTarget({ x: 450, y: 260 }, 0, 120, bounds);
     const second = getFollowTarget({ x: 450, y: 260 }, 1, 120, bounds);
 
     expect(first).not.toEqual(second);
+    expect(first.y).toBe(getGroundY({ ...biscuit, size: 120 / 150 }, initialSettings, bounds.height));
+    expect(second.y).toBe(first.y);
   });
 
   it("walks toward a far cursor and faces it", () => {
@@ -284,9 +338,10 @@ describe("follow mode", () => {
     expect(next.x).toBeGreaterThan(100);
     expect(next.direction).toBe(1);
     expect(["walk", "chase"]).toContain(next.behavior);
+    expect(next.y).toBe(getGroundY(biscuit, initialSettings, bounds.height));
   });
 
-  it("follow mode moves toward cursor y as well as x", () => {
+  it("moves toward its assigned follow slot while staying grounded", () => {
     const next = advanceCompanion(
       runtimeFor("mochi", { x: 100, y: 400, behavior: "idle" }),
       mochi,
@@ -299,7 +354,7 @@ describe("follow mode", () => {
     );
 
     expect(next.x).toBeGreaterThan(100);
-    expect(next.y).toBeLessThan(400);
+    expect(next.y).toBe(getGroundY(mochi, initialSettings, bounds.height));
   });
 
   it("watches the cursor once it has arrived", () => {
@@ -315,6 +370,7 @@ describe("follow mode", () => {
       { active: true, pounce: false, cursor: { x: 320, y: 300 }, cursorIdleMs: 0, targetIndex: 0 }
     );
     expect(next.behavior).toBe("watch");
+    expect(next.y).toBe(getGroundY(biscuit, initialSettings, bounds.height));
   });
 
   it("makes a cat stalk then pounce when the cursor sits still nearby", () => {
@@ -331,6 +387,7 @@ describe("follow mode", () => {
       follow
     );
     expect(stalking.behavior).toBe("stalk");
+    expect(stalking.y).toBe(getGroundY(mochi, initialSettings, bounds.height));
 
     const pouncing = advanceCompanion(
       { ...stalking, stateStartedAt: 0 },
@@ -343,6 +400,7 @@ describe("follow mode", () => {
       follow
     );
     expect(pouncing.behavior).toBe("pounce");
+    expect(pouncing.y).toBe(getGroundY(mochi, initialSettings, bounds.height));
   });
 
   it("separates overlapping follow-mode pets", () => {
@@ -402,6 +460,7 @@ describe("follow mode", () => {
     );
     expect(landed.behavior).toBe("watch");
     expect(landed.lastPounceAt).toBe(500);
+    expect(landed.y).toBe(getGroundY(mochi, initialSettings, bounds.height));
   });
 
   it("keeps an airborne follow pounce fully inside the screen", () => {
@@ -418,6 +477,17 @@ describe("follow mode", () => {
     );
 
     expect(airborne.y).toBeGreaterThanOrEqual(16);
+    expect(airborne.y).toBeLessThan(getGroundY(mochi, initialSettings, bounds.height));
+    expect(airborne.x).toBeGreaterThanOrEqual(8);
+  });
+
+  it("clamps a grounded follow target at both screen boundaries", () => {
+    const size = getPetSize(mochi, initialSettings);
+    const left = getFollowTarget({ x: -500, y: -500 }, 0, size, bounds);
+    const right = getFollowTarget({ x: 5000, y: 5000 }, 1, size, bounds);
+
+    expect(left).toEqual({ x: 8, y: getGroundY(mochi, initialSettings, bounds.height) });
+    expect(right).toEqual({ x: bounds.width - size - 8, y: getGroundY(mochi, initialSettings, bounds.height) });
   });
 
   it("does not immediately re-stalk an idle cursor after landing a pounce", () => {
@@ -476,6 +546,22 @@ describe("follow mode", () => {
       { active: true, pounce: true, cursor: { x: 700, y: 300 }, cursorIdleMs: 5000 }
     );
     expect(next.behavior).toBe("drag");
+  });
+
+  it.each(["toss", "fall"] as const)("does not interrupt %s physics to follow", (behavior) => {
+    const next = advanceCompanion(
+      runtimeFor("biscuit", { behavior, x: 200, y: 100, vx: 3, vy: -2 }),
+      biscuit,
+      initialSettings,
+      bounds,
+      16.67,
+      1000,
+      () => 0.5,
+      { active: true, pounce: true, cursor: { x: 700, y: 20 }, cursorIdleMs: 5000 }
+    );
+
+    expect(next.behavior).toBe(behavior);
+    expect(next.y).not.toBe(getGroundY(biscuit, initialSettings, bounds.height));
   });
 });
 
@@ -687,8 +773,8 @@ describe("pet-to-pet interactions", () => {
 });
 
 describe("autonomous roaming mode", () => {
-  it.each(["walk", "sit", "sleep", "watch", "stretch"] as const)(
-    "starts Screen roaming immediately when switched from %s without a target",
+  it.each(["sit", "sleep", "watch", "stretch", "greet", "react", "drink"] as const)(
+    "preserves the %s pose before its minimum duration in Screen roaming",
     (behavior) => {
       const next = advanceCompanion(
         runtimeFor("mochi", { behavior, x: 100, y: getGroundY(mochi, initialSettings, bounds.height), stateStartedAt: 0 }),
@@ -700,12 +786,35 @@ describe("autonomous roaming mode", () => {
         () => 0
       );
 
-      expect(next.behavior).toBe("walk");
-      expect(next.targetX).toBeDefined();
-      expect(next.targetY).toBeDefined();
-      expect(next.targetY).not.toBe(getGroundY(mochi, initialSettings, bounds.height));
+      expect(next.behavior).toBe(behavior);
+      expect(next.targetX).toBeUndefined();
+      expect(next.targetY).toBeUndefined();
     }
   );
+
+  it.each([
+    ["sit", 8000],
+    ["sleep", 8000],
+    ["watch", 8000],
+    ["stretch", 1500],
+    ["greet", 1000],
+    ["react", 900],
+    ["drink", 3700]
+  ] as const)("may seed Screen roaming after the %s minimum duration", (behavior, now) => {
+    const next = advanceCompanion(
+      runtimeFor("mochi", { behavior, x: 100, y: 200, stateStartedAt: 0 }),
+      mochi,
+      { ...initialSettings, roamMode: "screen" },
+      bounds,
+      16.67,
+      now,
+      () => 0
+    );
+
+    expect(next.behavior).toBe("walk");
+    expect(next.targetX).toBeDefined();
+    expect(next.targetY).toBeDefined();
+  });
 
   it("chooses an in-bounds two-dimensional target in Screen mode", () => {
     const next = advanceCompanion(

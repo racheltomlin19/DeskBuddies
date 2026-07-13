@@ -1,4 +1,4 @@
-import { Check, Circle, ListTodo, Minus, PanelLeft, PanelRight, PanelRightClose, PanelRightOpen, Pin, Plus, Sparkles, Trash2, X } from "lucide-react";
+import { Check, Circle, ListTodo, LogOut, Minus, PanelLeft, PanelRight, PanelRightClose, PanelRightOpen, Pin, Plus, Sparkles, Trash2, X } from "lucide-react";
 import type { ReactNode } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { initialCompanionState, initialSettings, initialTasks } from "./data";
@@ -19,6 +19,7 @@ import { uid, useLocalStorageState } from "./storage";
 import { STORAGE_KEYS } from "./storageKeys";
 import type { Behavior, EngineSettings, HeldMode, PetProfile, TaskItem } from "./types";
 import type { OverlaySnapshot } from "./shared/overlayBridge";
+import { initialDockHoverState, reduceDockHover, shouldCollapseDock } from "./panelCollapse";
 
 
 interface StatsState {
@@ -65,6 +66,15 @@ function App() {
   const summonedIds = useMemo(() => summonedCompanions.map((pet) => pet.id), [summonedCompanions]);
   const [dockState, setDockState] = useState<{ dockSide: "left" | "right" | null; collapsed: boolean }>({ dockSide: null, collapsed: false });
   const collapseTimeoutRef = useRef<number | null>(null);
+  const dockHoverRef = useRef(initialDockHoverState);
+  const dockedRef = useRef(false);
+  const dockStateRef = useRef(dockState);
+  const previousDockSideRef = useRef(dockState.dockSide);
+  const mountedRef = useRef(true);
+  const desiredCollapsedRef = useRef(false);
+  const hasLocalCollapseIntentRef = useRef(false);
+  const collapseRequestVersionRef = useRef(0);
+  const collapseRequestPendingRef = useRef(false);
   const [toolTab, setToolTab] = useState<ToolTab>("notes");
   const [newTask, setNewTask] = useState("");
   // Timer state is shared across the panel and every pop-out window.
@@ -74,17 +84,73 @@ function App() {
   const showFirstRun = !firstRunSeen;
 
   useEffect(() => {
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; };
+  }, []);
+
+  const applyExternalDockState = useCallback((state: { dockSide: "left" | "right" | null; collapsed: boolean }) => {
+    if (!mountedRef.current) {
+      return;
+    }
+    const sameDock = state.dockSide === dockStateRef.current.dockSide;
+    if (hasLocalCollapseIntentRef.current && sameDock && state.collapsed !== desiredCollapsedRef.current) return;
+    if (!sameDock) hasLocalCollapseIntentRef.current = false;
+    desiredCollapsedRef.current = state.collapsed;
+    dockStateRef.current = state;
+    setDockState(state);
+  }, []);
+  useEffect(() => {
     const request = window.deskBuddies?.getPanelDockState?.();
-    request?.then((state) => state && setDockState(state)).catch(() => undefined);
-    return window.deskBuddies?.onPanelDockState?.(setDockState);
-  }, []);
+    request?.then((state) => state && applyExternalDockState(state)).catch(() => undefined);
+    return window.deskBuddies?.onPanelDockState?.(applyExternalDockState);
+  }, [applyExternalDockState]);
   const requestCollapsed = useCallback((collapsed: boolean) => {
+    desiredCollapsedRef.current = collapsed;
+    hasLocalCollapseIntentRef.current = true;
+    collapseRequestPendingRef.current = true;
+    const requestVersion = ++collapseRequestVersionRef.current;
     const request = window.deskBuddies?.setPanelCollapsed?.(collapsed);
-    request?.then(setDockState).catch(() => undefined);
+    if (!request) {
+      collapseRequestPendingRef.current = false;
+      hasLocalCollapseIntentRef.current = false;
+      return;
+    }
+    request.then((state) => {
+      if (!mountedRef.current || requestVersion !== collapseRequestVersionRef.current) {
+        return;
+      }
+      collapseRequestPendingRef.current = false;
+      if (state.collapsed !== desiredCollapsedRef.current) return;
+      dockStateRef.current = state;
+      setDockState(state);
+    }).catch(() => {
+      if (mountedRef.current && requestVersion === collapseRequestVersionRef.current) {
+        collapseRequestPendingRef.current = false;
+        hasLocalCollapseIntentRef.current = false;
+        desiredCollapsedRef.current = dockStateRef.current.collapsed;
+      }
+    });
   }, []);
+  dockStateRef.current = dockState;
+  dockedRef.current = Boolean(dockState.dockSide);
   const requestDock = useCallback((side: "left" | "right") => {
     const request = window.deskBuddies?.dockPanel?.(side);
-    request?.then(setDockState).catch(() => undefined);
+    request?.then((state) => {
+      if (!mountedRef.current) return;
+      hasLocalCollapseIntentRef.current = false;
+      desiredCollapsedRef.current = state.collapsed;
+      dockStateRef.current = state;
+      setDockState(state);
+    }).catch(() => undefined);
+  }, []);
+  const requestUndock = useCallback(() => {
+    window.deskBuddies?.undockPanel?.().then((state) => {
+      if (!mountedRef.current) return;
+      hasLocalCollapseIntentRef.current = false;
+      desiredCollapsedRef.current = state.collapsed;
+      dockStateRef.current = state;
+      setDockState(state);
+    }).catch(() => undefined);
   }, []);
   const clearCollapseTimeout = useCallback(() => {
     if (collapseTimeoutRef.current !== null) {
@@ -92,19 +158,61 @@ function App() {
       collapseTimeoutRef.current = null;
     }
   }, []);
+  useEffect(() => {
+    if (previousDockSideRef.current !== dockState.dockSide) {
+      clearCollapseTimeout();
+      dockHoverRef.current = reduceDockHover(dockHoverRef.current, { type: "dock-session-reset" }).state;
+      previousDockSideRef.current = dockState.dockSide;
+    }
+  }, [clearCollapseTimeout, dockState.dockSide]);
   useEffect(() => clearCollapseTimeout, [clearCollapseTimeout]);
-  const handleWorkspaceEnter = useCallback(() => {
+  const scheduleCollapse = useCallback(() => {
     clearCollapseTimeout();
-    if (dockState.dockSide && dockState.collapsed) {
+    if (!shouldCollapseDock({ docked: dockedRef.current, ...dockHoverRef.current })) {
+      return;
+    }
+    collapseTimeoutRef.current = window.setTimeout(() => {
+      collapseTimeoutRef.current = null;
+      if (shouldCollapseDock({ docked: dockedRef.current, ...dockHoverRef.current })) {
+        requestCollapsed(true);
+      }
+    }, 400);
+  }, [clearCollapseTimeout, requestCollapsed]);
+  const handleShellPointerEnter = useCallback(() => {
+    const transition = reduceDockHover(dockHoverRef.current, { type: "pointer-enter" });
+    dockHoverRef.current = transition.state;
+    clearCollapseTimeout();
+    if (transition.intent === "expand" && dockState.dockSide && (dockState.collapsed || desiredCollapsedRef.current)) {
       requestCollapsed(false);
     }
-  }, [clearCollapseTimeout, dockState, requestCollapsed]);
-  const handleWorkspaceLeave = useCallback(() => {
+  }, [clearCollapseTimeout, dockState.collapsed, dockState.dockSide, requestCollapsed]);
+  const handleShellPointerLeave = useCallback(() => {
+    const transition = reduceDockHover(dockHoverRef.current, { type: "pointer-leave" });
+    dockHoverRef.current = transition.state;
+    if (transition.intent === "schedule-collapse") scheduleCollapse();
+  }, [scheduleCollapse]);
+  const handleShellFocus = useCallback(() => {
+    const transition = reduceDockHover(dockHoverRef.current, { type: "focus-in" });
+    dockHoverRef.current = transition.state;
     clearCollapseTimeout();
-    if (dockState.dockSide) {
-      collapseTimeoutRef.current = window.setTimeout(() => requestCollapsed(true), 250);
+    if (transition.intent === "expand" && dockState.dockSide && (dockState.collapsed || desiredCollapsedRef.current)) {
+      requestCollapsed(false);
     }
-  }, [clearCollapseTimeout, dockState.dockSide, requestCollapsed]);
+  }, [clearCollapseTimeout, dockState.collapsed, dockState.dockSide, requestCollapsed]);
+  const handleShellBlur = useCallback((event: React.FocusEvent<HTMLElement>) => {
+    if (event.relatedTarget instanceof Node && event.currentTarget.contains(event.relatedTarget)) {
+      return;
+    }
+    const transition = reduceDockHover(dockHoverRef.current, { type: "focus-out" });
+    dockHoverRef.current = transition.state;
+    if (transition.intent === "schedule-collapse") scheduleCollapse();
+  }, [scheduleCollapse]);
+  const handleManualCollapse = useCallback(() => {
+    const transition = reduceDockHover(dockHoverRef.current, { type: "manual-collapse" });
+    dockHoverRef.current = transition.state;
+    clearCollapseTimeout();
+    requestCollapsed(true);
+  }, [clearCollapseTimeout, requestCollapsed]);
 
   const updateSettings = useCallback(
     (patch: Partial<EngineSettings>) => {
@@ -303,16 +411,41 @@ function App() {
   };
 
   const collapsedDock = Boolean(dockState.dockSide && dockState.collapsed);
+  const handleQuit = () => {
+    if (timerActionProps.timerRunning && !window.confirm("A focus timer is running. Quit DeskBuddies?")) {
+      return;
+    }
+    window.deskBuddies?.quit();
+  };
 
   return (
-    <main className={`app-shell ${dockState.dockSide ? `docked ${dockState.collapsed ? "collapsed" : "expanded"}` : ""}`}>
-      {!collapsedDock && (
+    <main
+      className={`app-shell ${dockState.dockSide ? `docked ${dockState.collapsed ? "collapsed" : "expanded"}` : ""}`}
+      data-dock-side={dockState.dockSide ?? undefined}
+      onPointerEnter={handleShellPointerEnter}
+      onPointerLeave={handleShellPointerLeave}
+      onFocus={handleShellFocus}
+      onBlur={handleShellBlur}
+    >
+      {!dockState.dockSide && (
         <TopBar
           alwaysOnTop={settings.alwaysOnTop}
           summonedCount={summonedCompanions.length}
           onTogglePin={() => updateSettings({ alwaysOnTop: !settings.alwaysOnTop })}
           onDockLeft={() => requestDock("left")}
           onDockRight={() => requestDock("right")}
+          timerRunning={timerActionProps.timerRunning}
+          onQuit={handleQuit}
+        />
+      )}
+
+      {dockState.dockSide && !collapsedDock && (
+        <DockHeader
+          alwaysOnTop={settings.alwaysOnTop}
+          onCollapse={handleManualCollapse}
+          onTogglePin={() => updateSettings({ alwaysOnTop: !settings.alwaysOnTop })}
+          onUndock={requestUndock}
+          onQuit={handleQuit}
         />
       )}
 
@@ -326,10 +459,9 @@ function App() {
         </div>
       )}
 
-      <section className={`workspace ${dockState.dockSide ? `docked ${dockState.collapsed ? "collapsed" : "expanded"}` : ""}`} onMouseEnter={handleWorkspaceEnter} onMouseLeave={handleWorkspaceLeave}>
+      <section className={`workspace ${dockState.dockSide ? `docked ${dockState.collapsed ? "collapsed" : "expanded"}` : ""}`}>
         <CompanionRail companions={companions} onSpawnDrag={spawnDragRelease} onToggleSummoned={toggleSummoned} />
         {!dockState.collapsed && <CompanionControlsPanel pets={companions} settings={settings} heldModes={heldModes} onHeldMode={setHeldMode} onAction={runAction} onUpdatePet={updatePet} onUpdateAll={updateAllPets} onUpdateSettings={updateSettings} onSyncBehavior={syncHeldMode} />}
-        {dockState.dockSide && !dockState.collapsed && <button type="button" className="undock-button" onClick={() => window.deskBuddies?.undockPanel?.().then(setDockState)}>Undock panel</button>}
 
         <div className="tools-region">
           <button
@@ -437,15 +569,54 @@ function getToolTitle(tab: ToolTab) {
   }
 }
 
+interface DockHeaderProps {
+  alwaysOnTop: boolean;
+  onCollapse: () => void;
+  onTogglePin: () => void;
+  onUndock: () => void;
+  onQuit: () => void;
+}
+
+function DockHeader({ alwaysOnTop, onCollapse, onTogglePin, onUndock, onQuit }: DockHeaderProps) {
+  return (
+    <header className="dock-header">
+      <span className="dock-header-title">Docked panel</span>
+      <div className="dock-header-actions">
+        <IconButton label="Collapse dock" onClick={onCollapse}>
+          <PanelRightClose size={16} />
+        </IconButton>
+        <IconButton active={alwaysOnTop} pressed={alwaysOnTop} label="Always on top" onClick={onTogglePin}>
+          <Pin size={16} />
+        </IconButton>
+        <IconButton label="Minimize" onClick={() => window.deskBuddies?.minimize()}>
+          <Minus size={16} />
+        </IconButton>
+        <IconButton label="Hide to tray" onClick={() => window.deskBuddies?.close()}>
+          <X size={16} />
+        </IconButton>
+        <IconButton label="Quit DeskBuddies" tone="danger" onClick={onQuit}>
+          <LogOut size={16} />
+        </IconButton>
+        <button type="button" className="undock-button" onClick={onUndock} title="Return to a floating panel">
+          <PanelRightOpen size={16} />
+          <span>Undock</span>
+        </button>
+      </div>
+    </header>
+  );
+}
+
 interface TopBarProps {
   alwaysOnTop: boolean;
   summonedCount: number;
+  timerRunning: boolean;
   onTogglePin: () => void;
   onDockLeft: () => void;
   onDockRight: () => void;
+  onQuit: () => void;
 }
 
-function TopBar({ alwaysOnTop, summonedCount, onTogglePin, onDockLeft, onDockRight }: TopBarProps) {
+function TopBar({ alwaysOnTop, summonedCount, onTogglePin, onDockLeft, onDockRight, onQuit }: TopBarProps) {
   return (
     <header className="top-bar">
       <div className="brand">
@@ -462,14 +633,17 @@ function TopBar({ alwaysOnTop, summonedCount, onTogglePin, onDockLeft, onDockRig
         <IconButton label="Dock right" onClick={onDockRight}>
           <PanelRight size={17} />
         </IconButton>
-        <IconButton active={alwaysOnTop} label="Always on top" onClick={onTogglePin}>
+        <IconButton active={alwaysOnTop} pressed={alwaysOnTop} label="Always on top" onClick={onTogglePin}>
           <Pin size={17} />
         </IconButton>
-        <IconButton label="Minimize to tray" onClick={() => window.deskBuddies?.minimizeToTray()}>
+        <IconButton label="Minimize" onClick={() => window.deskBuddies?.minimize()}>
           <Minus size={17} />
         </IconButton>
-        <IconButton label="Close to tray" tone="danger" onClick={() => window.deskBuddies?.close()}>
+        <IconButton label="Hide to tray" onClick={() => window.deskBuddies?.close()}>
           <X size={17} />
+        </IconButton>
+        <IconButton label="Quit DeskBuddies" tone="danger" onClick={onQuit}>
+          <LogOut size={17} />
         </IconButton>
       </div>
     </header>
@@ -478,19 +652,21 @@ function TopBar({ alwaysOnTop, summonedCount, onTogglePin, onDockLeft, onDockRig
 
 interface IconButtonProps {
   active?: boolean;
+  pressed?: boolean;
   label: string;
   tone?: "default" | "danger";
   onClick?: () => void;
   children: ReactNode;
 }
 
-function IconButton({ active = false, label, tone = "default", onClick, children }: IconButtonProps) {
+function IconButton({ active = false, pressed, label, tone = "default", onClick, children }: IconButtonProps) {
   return (
     <button
       className={`icon-button ${active ? "active" : ""} ${tone === "danger" ? "danger" : ""}`}
       type="button"
       onClick={onClick}
       aria-label={label}
+      aria-pressed={pressed}
       title={label}
     >
       {children}

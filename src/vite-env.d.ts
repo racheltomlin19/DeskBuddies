@@ -28,8 +28,10 @@ export interface PanelDockState {
 declare global {
   interface Window {
     deskBuddies?: {
+      minimize: () => Promise<void>;
       minimizeToTray: () => Promise<void>;
       close: () => Promise<void>;
+      quit: () => Promise<void>;
       setAlwaysOnTop: (enabled: boolean) => Promise<boolean>;
       setLaunchAtLogin: (enabled: boolean) => Promise<boolean>;
       getPanelDockState?: () => Promise<PanelDockState>;

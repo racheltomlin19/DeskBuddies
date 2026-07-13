@@ -16,16 +16,30 @@ export interface FollowContext {
 const IDLE_FOLLOW: FollowContext = { active: false, pounce: false, cursor: null, cursorIdleMs: 0 };
 
 const BASE_PET_SIZE = 150;
+const FRAME_MS_60HZ = 1000 / 60;
+const SCREEN_POSE_MINIMUM_MS: Partial<Record<Behavior, number>> = {
+  stretch: 1450,
+  greet: 900,
+  react: 850,
+  drink: 3600
+};
+
+function getScreenPoseMinimumMs(behavior: Behavior, energy: number): number | undefined {
+  if (behavior === "sit" || behavior === "sleep" || behavior === "watch") {
+    return 5200 + energy * 2400;
+  }
+  return SCREEN_POSE_MINIMUM_MS[behavior];
+}
 // A cat that just pounced waits this long before stalking the idle cursor again.
 const POUNCE_COOLDOWN_MS = 4000;
-const FOLLOW_SLOTS = [
-  { x: -0.75, y: -0.35 },
-  { x: 0.75, y: -0.35 },
-  { x: -0.75, y: 0.55 },
-  { x: 0.75, y: 0.55 },
-  { x: 0, y: -1.1 },
-  { x: 0, y: 1.05 }
-] as const;
+const FOLLOW_SLOTS = [-0.75, 0.75, -1.5, 1.5, -2.25, 2.25] as const;
+
+export function chanceForDelta(probabilityAt60Hz: number, deltaMs: number): number {
+  if (Number.isNaN(probabilityAt60Hz) || Number.isNaN(deltaMs) || probabilityAt60Hz <= 0 || deltaMs <= 0) return 0;
+  if (probabilityAt60Hz >= 1 || deltaMs === Number.POSITIVE_INFINITY) return 1;
+  if (!Number.isFinite(probabilityAt60Hz) || !Number.isFinite(deltaMs)) return 0;
+  return 1 - Math.pow(1 - probabilityAt60Hz, deltaMs / FRAME_MS_60HZ);
+}
 
 export function createInitialRuntime(pets: PetProfile[], bounds: StageBounds = { width: 900, height: 520 }): PetRuntime[] {
   const now = performance.now();
@@ -200,7 +214,7 @@ export function advanceCompanion(
   }
 
   if (next.behavior === "sleep" || next.behavior === "sit" || next.behavior === "watch") {
-    if (elapsed > 5200 + pet.energy * 2400 && random() < 0.012) {
+    if (elapsed > 5200 + pet.energy * 2400 && random() < chanceForDelta(0.012, delta)) {
       return { ...next, y: ground, behavior: "idle", stateStartedAt: now };
     }
     return { ...next, y: ground };
@@ -283,7 +297,7 @@ export function advanceCompanion(
 
   if (next.behavior === "idle") {
     // Rare zoomies burst, more likely for high-energy companions.
-    if (elapsed > 1400 && random() < 0.0016 + pet.energy * 0.004) {
+    if (elapsed > 1400 && random() < chanceForDelta(0.0016 + pet.energy * 0.004, delta)) {
       const target = random() > 0.5 ? maxX : 8;
       return {
         ...next,
@@ -295,7 +309,7 @@ export function advanceCompanion(
       };
     }
     const wakeChance = 0.0035 + pet.energy * 0.004;
-    if (elapsed > 1100 && random() < wakeChance) {
+    if (elapsed > 1100 && random() < chanceForDelta(wakeChance, delta)) {
       return {
         ...next,
         y: ground,
@@ -304,7 +318,7 @@ export function advanceCompanion(
         stateStartedAt: now
       };
     }
-    if (elapsed > 2100 && random() > 0.78) {
+    if (elapsed > 2100 && random() > 1 - chanceForDelta(0.22, delta)) {
       return { ...next, y: ground, behavior: chooseWeightedBehavior(pet, random), stateStartedAt: now };
     }
     return { ...next, y: ground };
@@ -319,7 +333,7 @@ export function advanceCompanion(
     x = clamp(x, 8, maxX);
   }
 
-  if (elapsed > 1700 && random() < 0.0045) {
+  if (elapsed > 1700 && random() < chanceForDelta(0.0045, delta)) {
     return {
       ...next,
       x,
@@ -331,7 +345,7 @@ export function advanceCompanion(
   }
 
   // Cats near a side edge occasionally climb it and perch at the top.
-  if (pet.species === "cat" && (x <= 32 || x >= maxX - 32) && elapsed > 800 && random() < 0.02) {
+  if (pet.species === "cat" && (x <= 32 || x >= maxX - 32) && elapsed > 800 && random() < chanceForDelta(0.02, delta)) {
     const edgeX = x <= 32 ? 8 : maxX;
     return { ...next, x: edgeX, y: ground, direction: edgeX === 8 ? -1 : 1, behavior: "climb", stateStartedAt: now };
   }
@@ -349,7 +363,8 @@ export function applyNeighbors(
   pets: PetProfile[],
   bounds: StageBounds,
   now: number,
-  random: () => number = Math.random
+  random: () => number = Math.random,
+  deltaMs: number = FRAME_MS_60HZ
 ): PetRuntime[] {
   const petById = new Map(pets.map((pet) => [pet.id, pet]));
   const resting = runtimes.filter((runtime) => {
@@ -366,7 +381,7 @@ export function applyNeighbors(
   if (dist > 140 || !cooldownOk) {
     return runtimes;
   }
-  if (random() > 0.006) {
+  if (random() >= chanceForDelta(0.006, deltaMs)) {
     return runtimes;
   }
 
@@ -412,7 +427,8 @@ export function applyFountain(
   settings: EngineSettings,
   bounds: StageBounds,
   now: number,
-  random: () => number = Math.random
+  random: () => number = Math.random,
+  deltaMs: number = FRAME_MS_60HZ
 ): PetRuntime[] {
   if (!settings.fountain.enabled) {
     return runtimes;
@@ -424,7 +440,7 @@ export function applyFountain(
     if (!pet || pet.avatar !== "biscuit" || runtime.behavior !== "idle") {
       return runtime;
     }
-    if (now - runtime.lastInteractionAt < 8000 || random() > 0.004) {
+    if (now - runtime.lastInteractionAt < 8000 || random() >= chanceForDelta(0.004, deltaMs)) {
       return runtime;
     }
     return { ...runtime, behavior: "drink", targetX: fountainX, stateStartedAt: now, lastInteractionAt: now };
@@ -436,7 +452,7 @@ export function getPetSize(pet: PetProfile, settings: EngineSettings) {
 }
 
 export function getGroundY(pet: PetProfile, settings: EngineSettings, height: number) {
-  return Math.max(72, height - getPetSize(pet, settings) * 0.82 - 28);
+  return getGroundYForSize(getPetSize(pet, settings), height);
 }
 
 export function getFollowTarget(
@@ -448,8 +464,8 @@ export function getFollowTarget(
   const ring = Math.floor(index / FOLLOW_SLOTS.length);
   const slot = FOLLOW_SLOTS[index % FOLLOW_SLOTS.length];
   const distance = size * (0.72 + ring * 0.45);
-  const x = clamp(cursor.x - size / 2 + slot.x * distance, 8, Math.max(8, bounds.width - size - 8));
-  const y = clamp(cursor.y - size / 2 + slot.y * distance, 16, Math.max(16, bounds.height - size - 16));
+  const x = clamp(cursor.x - size / 2 + slot * distance, 8, Math.max(8, bounds.width - size - 8));
+  const y = getGroundYForSize(size, bounds.height);
   return { x, y };
 }
 
@@ -567,22 +583,26 @@ function advanceScreenRoam(
 ): PetRuntime {
   const elapsed = now - next.stateStartedAt;
 
+  const poseMinimum = getScreenPoseMinimumMs(next.behavior, pet.energy);
+  if (poseMinimum !== undefined && elapsed <= poseMinimum) {
+    return next;
+  }
+
   const isScreenWalker = next.behavior === "walk" || next.behavior === "chase";
   if (
     pet.species === "cat" &&
     isScreenWalker &&
     (next.x <= 32 || next.x >= maxX - 32) &&
     elapsed > 800 &&
-    random() < 0.02
+    random() < chanceForDelta(0.02, delta)
   ) {
     const edgeX = next.x <= 32 ? 8 : maxX;
     return { ...next, x: edgeX, direction: edgeX === 8 ? -1 : 1, behavior: "climb", stateStartedAt: now };
   }
 
   if (next.targetX === undefined || next.targetY === undefined) {
-    // Switching from Ground to Screen can leave any autonomous pose active
-    // without a two-dimensional target. Seed one immediately; otherwise
-    // targetless walk/sit/sleep/watch/stretch states never enter Screen roam.
+    // Targetless stationary poses keep their authored minimum hold above,
+    // then seed a two-dimensional destination for autonomous Screen roaming.
     const target = getScreenRoamTarget(pet, settings, bounds, random);
     return {
       ...next,
@@ -649,7 +669,8 @@ export function applyCuddle(
   pets: PetProfile[],
   bounds: StageBounds,
   now: number,
-  random: () => number = Math.random
+  random: () => number = Math.random,
+  deltaMs: number = FRAME_MS_60HZ
 ): PetRuntime[] {
   const petById = new Map(pets.map((pet) => [pet.id, pet]));
   const mochi = runtimes.find((runtime) => runtime.id === "mochi");
@@ -665,7 +686,7 @@ export function applyCuddle(
     return runtimes;
   }
   const cooldownOk = now - mochi.lastInteractionAt > 6000 && now - biscuit.lastInteractionAt > 6000;
-  if (!cooldownOk || random() > 0.01) {
+  if (!cooldownOk || random() >= chanceForDelta(0.002, deltaMs)) {
     return runtimes;
   }
 
@@ -718,8 +739,7 @@ function applyFollow(
   const cursor = follow.cursor!;
   const target = getFollowTarget(cursor, follow.targetIndex ?? 0, size, _bounds);
   const dx = target.x - next.x;
-  const dy = target.y - next.y;
-  const dist = Math.hypot(dx, dy);
+  const dist = Math.abs(dx);
   const arrive = Math.max(30, size * 0.28);
   const canPounce = follow.pounce && pet.species === "cat";
   const elapsed = now - next.stateStartedAt;
@@ -727,27 +747,27 @@ function applyFollow(
   // Pounce state machine: crouch (stalk) then leap (pounce), then watch again.
   if (next.behavior === "stalk") {
     if (elapsed > 620) {
-      return { ...next, y: target.y, behavior: "pounce", stateStartedAt: now };
+      return { ...next, y: ground, behavior: "pounce", stateStartedAt: now };
     }
-    return { ...next, y: target.y };
+    return { ...next, y: ground };
   }
   if (next.behavior === "pounce") {
     const progress = Math.min(1, elapsed / 380);
     const y = clamp(
-      target.y - Math.sin(progress * Math.PI) * (34 + pet.energy * 26),
+      ground - Math.sin(progress * Math.PI) * (34 + pet.energy * 26),
       16,
       Math.max(16, _bounds.height - size - 16)
     );
     const x = clamp(next.x + dx * 0.16, 8, maxX);
     if (progress >= 1) {
-      return { ...next, x, y: target.y, behavior: "watch", stateStartedAt: now, lastPounceAt: now };
+      return { ...next, x, y: ground, behavior: "watch", stateStartedAt: now, lastPounceAt: now };
     }
     return { ...next, x, y };
   }
 
   const pounceReady = next.lastPounceAt === undefined || now - next.lastPounceAt > POUNCE_COOLDOWN_MS;
   if (canPounce && pounceReady && follow.cursorIdleMs > 1400 && dist <= Math.max(arrive, size * 0.72)) {
-    return { ...next, y: target.y, direction: dx >= 0 ? 1 : -1, behavior: "stalk", stateStartedAt: now };
+    return { ...next, y: ground, direction: dx >= 0 ? 1 : -1, behavior: "stalk", stateStartedAt: now };
   }
 
   if (dist > arrive) {
@@ -755,11 +775,10 @@ function applyFollow(
     const direction: 1 | -1 = dx >= 0 ? 1 : -1;
     const behavior: Behavior = dist > 320 ? "chase" : "walk";
     const stateStartedAt = next.behavior === behavior ? next.stateStartedAt : now;
-    const ratio = dist === 0 ? 0 : step / dist;
     return {
       ...next,
-      x: clamp(next.x + dx * ratio, 8, maxX),
-      y: clamp(next.y + dy * ratio, 16, Math.max(16, _bounds.height - size - 16)),
+      x: clamp(next.x + Math.sign(dx) * step, 8, maxX),
+      y: ground,
       direction,
       behavior,
       stateStartedAt
@@ -771,6 +790,7 @@ function applyFollow(
   const direction: 1 | -1 = dx >= 0 ? 1 : -1;
   return {
     ...next,
+    y: ground,
     direction,
     behavior: "watch",
     stateStartedAt: next.behavior === "watch" ? next.stateStartedAt : now
@@ -784,6 +804,10 @@ function keepInBounds(runtime: PetRuntime, pet: PetProfile, settings: EngineSett
     x: clamp(runtime.x, 8, maxX),
     y: clamp(runtime.y, 16, getGroundY(pet, settings, bounds.height))
   };
+}
+
+function getGroundYForSize(size: number, height: number) {
+  return Math.max(72, height - size * 0.82 - 28);
 }
 
 function defaultScaleSettings(): EngineSettings {

@@ -108,9 +108,11 @@ export function useCompanionSimulation({
             })
           : current;
         // Ambient interactions run first (skipped while following the cursor).
-        const withCuddle = follow.active ? placed : applyCuddle(placed, companions, bounds, now);
-        const withNeighbors = follow.active ? withCuddle : applyNeighbors(withCuddle, companions, bounds, now);
-        const seeded = follow.active ? withNeighbors : applyFountain(withNeighbors, companions, settings, bounds, now);
+        const withCuddle = follow.active ? placed : applyCuddle(placed, companions, bounds, now, Math.random, delta);
+        const withNeighbors = follow.active ? withCuddle : applyNeighbors(withCuddle, companions, bounds, now, Math.random, delta);
+        const seeded = follow.active
+          ? withNeighbors
+          : applyFountain(withNeighbors, companions, settings, bounds, now, Math.random, delta);
         const advanced = seeded.map((petRuntime) => {
           if (dragRef.current?.id === petRuntime.id) {
             return petRuntime;

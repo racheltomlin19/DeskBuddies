@@ -1,8 +1,8 @@
 const PANEL_WIDTH = 350;
 const PANEL_HEIGHT = 720;
 const PANEL_ASPECT_RATIO = PANEL_WIDTH / PANEL_HEIGHT;
-const RAIL_WIDTH = 60;
-const SNAP_DISTANCE = 24;
+const RAIL_WIDTH = 80;
+const SNAP_DISTANCE = 32;
 
 function clamp(value, min, max) {
   return Math.min(max, Math.max(min, value));
@@ -17,10 +17,32 @@ function normalizeFloatingBounds(value) {
   return bounds;
 }
 
-function snapPanelBounds(bounds, workArea) {
-  if (Math.abs(bounds.x - workArea.x) <= SNAP_DISTANCE) return "left";
-  if (Math.abs(bounds.x + bounds.width - (workArea.x + workArea.width)) <= SNAP_DISTANCE) return "right";
+function getSnapCandidate(bounds, workArea, threshold = 32) {
+  const leftDistance = Math.abs(bounds.x - workArea.x);
+  const rightDistance = Math.abs(
+    bounds.x + bounds.width - (workArea.x + workArea.width)
+  );
+  const leftQualifies = leftDistance <= threshold;
+  const rightQualifies = rightDistance <= threshold;
+
+  if (leftQualifies && rightQualifies) {
+    return leftDistance <= rightDistance ? "left" : "right";
+  }
+  if (leftQualifies) return "left";
+  if (rightQualifies) return "right";
   return null;
+}
+
+function snapPanelBounds(bounds, workArea) {
+  return getSnapCandidate(bounds, workArea, SNAP_DISTANCE);
+}
+
+function isDockRearmed(bounds, workArea, clearance = 64) {
+  const leftDistance = Math.abs(bounds.x - workArea.x);
+  const rightDistance = Math.abs(
+    bounds.x + bounds.width - (workArea.x + workArea.width)
+  );
+  return leftDistance >= clearance && rightDistance >= clearance;
 }
 
 function getDockedBounds(side, collapsed, workArea) {
@@ -88,6 +110,8 @@ module.exports = {
   PANEL_ASPECT_RATIO,
   RAIL_WIDTH,
   SNAP_DISTANCE,
+  getSnapCandidate,
+  isDockRearmed,
   snapPanelBounds,
   getDockedBounds,
   canResizePanel,

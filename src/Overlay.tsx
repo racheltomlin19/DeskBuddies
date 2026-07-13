@@ -9,7 +9,12 @@ import { findPetAtPoint, getTrashZone, isPointInTrashZone, type PetBox } from ".
 import { useCompanionSimulation, type SimulationBounds } from "./overlay/useCompanionSimulation";
 import type { FollowContext } from "./behaviorEngine";
 import { initialSettings } from "./data";
-import { getOverlayInteractionTransition } from "./overlay/interactionState";
+import {
+  OVERLAY_ENTRY_HIT_PADDING,
+  OVERLAY_EXIT_HIT_PADDING,
+  getOverlayInteractionTransition
+} from "./overlay/interactionState";
+import { createDragTerminationController, type DragTerminalSignal } from "./overlay/dragTermination";
 
 const emptySnapshot: OverlaySnapshot = { companions: [], settings: { ...initialSettings } };
 
@@ -20,15 +25,21 @@ export function Overlay() {
   const cursorRef = useRef<{ x: number; y: number } | null>(null);
   const cursorMovedAtRef = useRef(0);
   const dragSampleRef = useRef<{ x: number; y: number; t: number } | null>(null);
+  const lastPointerRef = useRef<{ x: number; y: number } | null>(null);
   const throwRef = useRef<{ vx: number; vy: number }>({ vx: 0, vy: 0 });
   const interactionTimeoutRef = useRef<number | null>(null);
+  const forceClickThrough = useCallback(() => {
+    if (interactionTimeoutRef.current !== null) window.clearTimeout(interactionTimeoutRef.current);
+    interactionTimeoutRef.current = null;
+    interactiveRef.current = false;
+    window.deskBuddies?.setOverlayInteractive(false);
+  }, []);
   const requestOverlayInteraction = useCallback((overPet: boolean, dragging: boolean) => {
     if (interactionTimeoutRef.current !== null) window.clearTimeout(interactionTimeoutRef.current);
     const transition = getOverlayInteractionTransition({ interactive: interactiveRef.current, overPet, dragging });
     if (transition.delay === 0) { interactiveRef.current = transition.interactive; window.deskBuddies?.setOverlayInteractive(transition.interactive); }
     else interactionTimeoutRef.current = window.setTimeout(() => { interactiveRef.current = false; window.deskBuddies?.setOverlayInteractive(false); }, transition.delay);
   }, []);
-  useEffect(() => () => { if (interactionTimeoutRef.current !== null) window.clearTimeout(interactionTimeoutRef.current); }, []);
 
   const getBounds = useCallback((): SimulationBounds => ({ width: window.innerWidth, height: window.innerHeight }), []);
 
@@ -56,6 +67,53 @@ export function Overlay() {
   const pressMovedRef = useRef(false);
   const pressOriginRef = useRef<{ x: number; y: number } | null>(null);
   const lastClickRef = useRef<{ id: string; t: number } | null>(null);
+  const draggingIdRef = useRef<string | null>(null);
+  const capturedTargetRef = useRef<HTMLButtonElement | null>(null);
+  const capturedPointerIdRef = useRef<number | null>(null);
+  const suppressClickRef = useRef(false);
+  const suppressStaleHitRef = useRef(false);
+  const endDragRef = useRef(endDrag);
+  endDragRef.current = endDrag;
+  const getBoundsRef = useRef(getBounds);
+  getBoundsRef.current = getBounds;
+
+  const finishDragRef = useRef<(signal: DragTerminalSignal) => void>(() => undefined);
+  finishDragRef.current = (signal) => {
+    const id = draggingIdRef.current;
+    const moved = pressMovedRef.current;
+    const point = lastPointerRef.current;
+    const normalRelease = signal === "pointer-up";
+    draggingRef.current = false;
+    dragSampleRef.current = null;
+    suppressClickRef.current = !normalRelease || moved;
+    suppressStaleHitRef.current = true;
+
+    if (normalRelease && id && moved && point && isPointInTrashZone(point, getBoundsRef.current())) {
+      endDragRef.current(0, 0);
+      window.deskBuddies?.requestHidePet?.(id);
+    } else {
+      const velocity = normalRelease ? throwRef.current : { vx: 0, vy: 0 };
+      endDragRef.current(velocity.vx, velocity.vy);
+    }
+
+    const target = capturedTargetRef.current;
+    const pointerId = capturedPointerIdRef.current;
+    capturedTargetRef.current = null;
+    capturedPointerIdRef.current = null;
+    draggingIdRef.current = null;
+    pressOriginRef.current = null;
+    if (target && pointerId !== null && signal !== "lost-capture") {
+      try {
+        if (!target.hasPointerCapture || target.hasPointerCapture(pointerId)) target.releasePointerCapture(pointerId);
+      } catch { /* capture may already be gone */ }
+    }
+    forceClickThrough();
+    if (signal !== "unmount") setDraggingId(null);
+  };
+  const terminationRef = useRef<ReturnType<typeof createDragTerminationController> | null>(null);
+  if (terminationRef.current === null) {
+    terminationRef.current = createDragTerminationController((signal) => finishDragRef.current(signal));
+  }
 
   useEffect(() => {
     if (!window.deskBuddies) {
@@ -125,7 +183,6 @@ export function Overlay() {
 
   const boxesRef = useRef(boxes);
   boxesRef.current = boxes;
-  const lastPointerRef = useRef<{ x: number; y: number } | null>(null);
 
   // Pets keep moving while the cursor sits still, so re-evaluate the padded
   // hit test whenever the boxes change. Without this the overlay can stay
@@ -135,11 +192,15 @@ export function Overlay() {
     if (draggingRef.current) {
       return;
     }
+    if (suppressStaleHitRef.current) {
+      suppressStaleHitRef.current = false;
+      return;
+    }
     const point = lastPointerRef.current;
     if (!point) {
       return;
     }
-    const padding = interactiveRef.current ? 34 : 14;
+    const padding = interactiveRef.current ? OVERLAY_EXIT_HIT_PADDING : OVERLAY_ENTRY_HIT_PADDING;
     const over = findPetAtPoint(point, boxes, padding) !== null;
     if (over !== interactiveRef.current) {
       requestOverlayInteraction(over, false);
@@ -148,8 +209,14 @@ export function Overlay() {
 
   useEffect(() => {
     const onMove = (event: globalThis.PointerEvent) => {
-      lastPointerRef.current = { x: event.clientX, y: event.clientY };
       if (draggingRef.current) {
+        if (event.pointerId !== capturedPointerIdRef.current) return;
+        lastPointerRef.current = { x: event.clientX, y: event.clientY };
+        if (event.buttons === 0) {
+          terminationRef.current?.terminate("buttons-released");
+          return;
+        }
+        terminationRef.current?.noteMovement(true);
         // Sample pointer velocity so a flick on release becomes a toss.
         const nowT = performance.now();
         const prev = dragSampleRef.current;
@@ -168,9 +235,11 @@ export function Overlay() {
         dragPet(event.clientX, event.clientY);
         return;
       }
+      lastPointerRef.current = { x: event.clientX, y: event.clientY };
+      suppressStaleHitRef.current = false;
       // Hysteresis: a wider hit box while already hovering keeps the window from
       // flip-flopping between interactive and click-through as the pet drifts.
-      const padding = interactiveRef.current ? 34 : 14;
+      const padding = interactiveRef.current ? OVERLAY_EXIT_HIT_PADDING : OVERLAY_ENTRY_HIT_PADDING;
       const over = findPetAtPoint({ x: event.clientX, y: event.clientY }, boxesRef.current, padding) !== null;
       if (over !== interactiveRef.current) {
         requestOverlayInteraction(over, false);
@@ -180,17 +249,53 @@ export function Overlay() {
     return () => window.removeEventListener("pointermove", onMove);
   }, [dragPet, requestOverlayInteraction]);
 
+  useEffect(() => {
+    const terminateUp = (event: globalThis.PointerEvent) => {
+      if (event.pointerId === capturedPointerIdRef.current) terminationRef.current?.terminate("pointer-up");
+    };
+    const terminateCancel = (event: globalThis.PointerEvent) => {
+      if (event.pointerId === capturedPointerIdRef.current) terminationRef.current?.terminate("pointer-cancel");
+    };
+    const terminateBlur = () => {
+      lastPointerRef.current = null;
+      if (!terminationRef.current?.terminate("blur")) forceClickThrough();
+    };
+    const terminateHidden = () => {
+      if (document.visibilityState === "hidden") {
+        lastPointerRef.current = null;
+        if (!terminationRef.current?.terminate("page-hide")) forceClickThrough();
+      }
+    };
+    window.addEventListener("pointerup", terminateUp);
+    window.addEventListener("pointercancel", terminateCancel);
+    window.addEventListener("blur", terminateBlur);
+    document.addEventListener("visibilitychange", terminateHidden);
+    return () => {
+      window.removeEventListener("pointerup", terminateUp);
+      window.removeEventListener("pointercancel", terminateCancel);
+      window.removeEventListener("blur", terminateBlur);
+      document.removeEventListener("visibilitychange", terminateHidden);
+      terminationRef.current?.dispose();
+      forceClickThrough();
+    };
+  }, [forceClickThrough]);
+
   const onPetPointerDown = useCallback(
     (id: string, event: PointerEvent<HTMLButtonElement>) => {
-      event.currentTarget.setPointerCapture(event.pointerId);
+      try { event.currentTarget.setPointerCapture(event.pointerId); } catch { /* global recovery remains available */ }
       requestOverlayInteraction(true, true);
       draggingRef.current = true;
+      draggingIdRef.current = id;
+      capturedTargetRef.current = event.currentTarget;
+      capturedPointerIdRef.current = event.pointerId;
+      suppressClickRef.current = false;
       setDraggingId(id);
       pressMovedRef.current = false;
       pressOriginRef.current = { x: event.clientX, y: event.clientY };
       dragSampleRef.current = { x: event.clientX, y: event.clientY, t: performance.now() };
       throwRef.current = { vx: 0, vy: 0 };
       beginDrag(id, event.clientX, event.clientY);
+      terminationRef.current?.begin();
     },
     [beginDrag, requestOverlayInteraction]
   );
@@ -198,7 +303,8 @@ export function Overlay() {
   // A press that never moved is a click: single = react, double = happy hop.
   const onPetClick = useCallback(
     (id: string) => {
-      if (pressMovedRef.current) {
+      if (suppressClickRef.current || pressMovedRef.current) {
+        suppressClickRef.current = false;
         return;
       }
       const nowT = performance.now();
@@ -214,23 +320,15 @@ export function Overlay() {
     [command, react]
   );
 
-  const onPetPointerUp = useCallback(() => {
-    if (draggingRef.current) {
-      draggingRef.current = false;
-      dragSampleRef.current = null;
-      const point = lastPointerRef.current;
-      // A real drag released over the trash corner hides the pet instead of
-      // tossing it. Clicks (no movement) can never trigger the trash.
-      if (draggingId && pressMovedRef.current && point && isPointInTrashZone(point, getBounds())) {
-        endDrag(0, 0);
-        window.deskBuddies?.requestHidePet?.(draggingId);
-      } else {
-        endDrag(throwRef.current.vx, throwRef.current.vy);
-      }
-    }
-    requestOverlayInteraction(false, false);
-    setDraggingId(null);
-  }, [draggingId, endDrag, getBounds, requestOverlayInteraction]);
+  const onPetPointerUp = useCallback((event: PointerEvent<HTMLButtonElement>) => {
+    if (event.pointerId === capturedPointerIdRef.current) terminationRef.current?.terminate("pointer-up");
+  }, []);
+  const onPetPointerCancel = useCallback((event: PointerEvent<HTMLButtonElement>) => {
+    if (event.pointerId === capturedPointerIdRef.current) terminationRef.current?.terminate("pointer-cancel");
+  }, []);
+  const onPetLostPointerCapture = useCallback((event: PointerEvent<HTMLButtonElement>) => {
+    if (event.pointerId === capturedPointerIdRef.current) terminationRef.current?.terminate("lost-capture");
+  }, []);
 
   const fountainSize = 120;
   const fountainLeft = getFountainX(snapshot.settings, window.innerWidth) - fountainSize / 2;
@@ -290,7 +388,8 @@ export function Overlay() {
             }}
             onPointerDown={(event) => onPetPointerDown(pet.id, event)}
             onPointerUp={onPetPointerUp}
-            onPointerCancel={onPetPointerUp}
+            onPointerCancel={onPetPointerCancel}
+            onLostPointerCapture={onPetLostPointerCapture}
             onClick={() => onPetClick(pet.id)}
           >
             <div className="overlay-pet-art" style={{ transform: `scaleX(${current.direction})` }}>
