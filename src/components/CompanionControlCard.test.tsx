@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { act } from "react";
+import { readFileSync } from "node:fs";
 import { createRoot, type Root } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -103,5 +104,18 @@ describe("CompanionControlCard", () => {
     expect(markup).toContain("An alert, watchful Japanese Bobtail who keeps a curious eye on your desktop.");
     expect(markup).toContain('aria-label="Walk Mochi"');
     expect(markup).toContain('aria-label="Nap Mochi"');
+  });
+
+  it("renders the profile name and breed as a spaced identity block", () => {
+    const handlers = {
+      onHeldMode: vi.fn(), onAction: vi.fn(), onUpdatePet: vi.fn(), onSyncBehavior: vi.fn()
+    };
+    const markup = renderToStaticMarkup(<CompanionControlCard pet={mochi} heldMode={null} {...handlers} />);
+    const styles = readFileSync("src/styles.css", "utf8");
+
+    expect(markup).toContain('class="companion-identity"');
+    expect(markup).toContain('class="companion-name"');
+    expect(markup).toContain('class="companion-breed"');
+    expect(styles).toMatch(/\.companion-identity\s*\{[^}]*display:\s*grid;[^}]*gap:/s);
   });
 });

@@ -15,6 +15,13 @@ const editablePetFields: Array<keyof PetProfile> = [
   "personality"
 ];
 
+const appearanceFields = new Set<keyof PetProfile>([
+  "primaryColor",
+  "secondaryColor",
+  "accentColor",
+  "eyeColor"
+]);
+
 function cloneCompanion(pet: PetProfile): PetProfile {
   return {
     ...pet,
@@ -29,6 +36,9 @@ function mergeStoredCompanion(defaultPet: PetProfile, stored: PetProfile | undef
   }
 
   const editable = editablePetFields.reduce<Partial<PetProfile>>((patch, field) => {
+    if (appearanceFields.has(field) && stored.pattern !== defaultPet.pattern) {
+      return patch;
+    }
     if (field in stored) {
       return { ...patch, [field]: field === "personality" ? { ...stored.personality } : stored[field] };
     }

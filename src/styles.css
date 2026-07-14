@@ -1161,6 +1161,9 @@ textarea {
 .rail-pet[aria-pressed="true"] .rail-status { color:var(--teal-dark); }
 .companion-controls-panel { display:grid; flex:0 0 auto; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:12px; overflow:visible; min-width:0; }
 .companion-control-card, .all-animals-control-card { background:rgba(255,255,255,.96); border:1px solid var(--line); border-radius:14px; padding:12px; box-shadow:0 8px 20px rgb(21 43 48 / .08); }
+.companion-identity { display:grid; gap:2px; min-width:0; }
+.companion-name { line-height:1.15; }
+.companion-breed { color:var(--muted); font-size:11px; line-height:1.25; }
 .companion-description { max-width:32ch; margin:3px 0 0; color:var(--muted); font-size:11px; line-height:1.35; }
 .control-buttons { display:flex; flex-wrap:wrap; gap:6px; margin:10px 0; }
 .control-buttons button { min-height:40px; padding:0 10px; }
@@ -1187,6 +1190,7 @@ textarea {
   -webkit-app-region: drag;
 }
 .dock-header-title { color:var(--muted); font-size:12px; font-weight:760; flex:1 1 auto; min-width:0; }
+.app-shell.docked .dock-header-title { display:none; }
 .dock-header-actions { display:flex; align-items:center; gap:3px; flex:0 0 auto; -webkit-app-region:no-drag; }
 .undock-button {
   min-height: 32px;

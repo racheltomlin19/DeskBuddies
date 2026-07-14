@@ -39,6 +39,47 @@ describe("companion state", () => {
     expect(biscuit.avatar).toBe("biscuit");
   });
 
+  it("restores canonical colors when a stored companion has a legacy pattern", () => {
+    const canonicalBiscuit = customCompanions.find((pet) => pet.id === "biscuit")!;
+    const stored = initialCompanionState.companions.map((pet) =>
+      pet.id === "biscuit"
+        ? {
+            ...pet,
+            pattern: "tuxedo" as const,
+            primaryColor: "#fffdf8",
+            secondaryColor: "#4b4543",
+            accentColor: "#2f2a29",
+            eyeColor: "#56826c",
+            size: 1.21,
+            speed: 0.73,
+            energy: 0.91
+          }
+        : pet
+    );
+
+    const normalized = normalizeCompanionState({ schemaVersion: COMPANION_SCHEMA_VERSION, companions: stored });
+    const biscuit = normalized.companions.find((pet) => pet.id === "biscuit")!;
+
+    expect({
+      pattern: biscuit.pattern,
+      primaryColor: biscuit.primaryColor,
+      secondaryColor: biscuit.secondaryColor,
+      accentColor: biscuit.accentColor,
+      eyeColor: biscuit.eyeColor
+    }).toEqual({
+      pattern: canonicalBiscuit.pattern,
+      primaryColor: canonicalBiscuit.primaryColor,
+      secondaryColor: canonicalBiscuit.secondaryColor,
+      accentColor: canonicalBiscuit.accentColor,
+      eyeColor: canonicalBiscuit.eyeColor
+    });
+    expect({ size: biscuit.size, speed: biscuit.speed, energy: biscuit.energy }).toEqual({
+      size: 1.21,
+      speed: 0.73,
+      energy: 0.91
+    });
+  });
+
   it("restores canonical authored identity and descriptions instead of stale stored copy", () => {
     const stored = initialCompanionState.companions.map((pet) =>
       pet.id === "mochi"

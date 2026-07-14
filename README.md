@@ -1,180 +1,182 @@
 # DeskBuddies 🐱
 
-Desktop companions that live on your screen — roaming your desktop, napping
-on the taskbar, and occasionally causing trouble.
+Little hand-drawn companions that wander around your desktop, nap near the
+taskbar, watch your cursor, and occasionally tear across the screen for no good
+reason.
 
-Mochi (a calico watch cat) and Biscuit (a tuxedo lounger) are two hand-drawn
-cats that wander a transparent overlay across your entire desktop. They walk,
-sit, nap, stretch, watch your cursor, and sometimes zoom across the screen for
-no reason. Plus a whole catalog of bonus companions — dogs, capybaras, tiny
-elephants, raccoons, and a few weird ones — to summon and customize.
+Mochi is a watchful calico Japanese Bobtail. Biscuit is a sleepy cream-orange
+Maine Coon. They live in a transparent desktop overlay, along with eight other
+cats, dogs, critters, and weird little objects you can summon from the panel.
 
-![DeskBuddies on the desktop](docs/screenshots/desktop-overlay.png)
+![Mochi and Biscuit roaming the desktop](showcase/exports/screenshots/deskbuddies-01-hero-web.png)
+
+[Watch the full showcase](showcase/exports/video/deskbuddies-showcase-1080p.mp4) ·
+[Watch the silent UI demo](showcase/exports/video/deskbuddies-ui-demo-silent.mp4)
 
 ## Why?
 
-I wanted a desktop pet that actually felt alive — not a static sprite that
-sits in the corner, but something that wanders, reacts, and has a bit of
-personality. Most desktop pet apps I found were either abandoned Java applets
-from 2004 or bloated Electron apps with a million dependencies and no soul.
+I wanted a desktop pet that actually felt alive — not a static sprite that sits
+in the corner, but something that wanders, reacts, and has a bit of personality.
+Most desktop pet apps I found were either abandoned Java applets from 2004 or
+bloated Electron apps with a million dependencies and no soul.
 
-So I built one. It's cats (and a few other critters) for now, but the avatar
-system is extensible — adding a new companion is just a matter of drawing an
-SVG and adding a profile.
+So I built one. Yes, it is also an Electron app. The pets are custom SVG rigs
+animated with CSS, though: no canvas, no WebGL, no game engine, and no pile of
+sprite sheets.
 
-## Features
+## What they do
 
-### Companions
+- **Roam and react.** Companions walk, sit, nap, stretch, watch, jump, pounce,
+  climb, and get the occasional case of zoomies. Click one for a heart or drag
+  it somewhere better.
+- **Have actual personalities.** Each companion has different weighted behavior
+  preferences. Mochi watches more. Biscuit naps more. Capy is exactly as busy as
+  you would expect a capybara to be.
+- **Follow without floating around.** Follow Cursor can be switched on or off at
+  any time. Grounded follow keeps the pets on the floor while they chase the
+  cursor horizontally; screen roaming lets them use more of the desktop.
+- **Hang out together.** Nearby resting cats can greet and cuddle. Biscuit also
+  wanders over to the fountain for a drink.
+- **Stay out of the way.** The transparent overlay passes normal clicks through
+  to the desktop and only becomes interactive around a pet or draggable prop.
 
-- **Two starter cats** — Mochi (calico, watchful — stares at your cursor a
-  lot) and Biscuit (tuxedo, lazy — naps whenever possible). Custom SVG rigs,
-  no image assets.
-- **8 catalog companions** — summon a Yorkie terrier, a capybara named Capy,
-  a tiny elephant named Peanut, a raccoon named Bandit, a blue blob monster
-  named Sprout, a patch cat, a keyboard buddy, and a punching bag (it's a
-  training thing). All custom SVG.
-- **Articulated walk cycle** — side-profile CatWalkRig with leg swing, tail
-  sway, and ear twitch. Pure CSS keyframes, no game engine.
+## The panel
 
-### Interactions
+![Expanded DeskBuddies control panel](showcase/exports/screenshots/deskbuddies-02-panel-web.png)
 
-- **Click to pet** — click a companion to give it a heart reaction. Drag to
-  reposition.
-- **Drag-and-spawn** — pull companions from the rail onto the desktop. Hide
-  and show from the tray.
-- **Companion bonding** — Mochi and Biscuit cuddle when they're both resting
-  nearby. Biscuit wanders over to the water fountain for a drink.
-- **Follow mode** — all companions follow your cursor around the screen.
-- **Pounce mode** — all companions pounce in unison. Because chaos.
+The two-column companion selector fits the full crew without a horizontal
+scroll strip. Click a profile to summon or hide it, or drag its portrait onto the
+desktop. Each summoned companion gets its own controls for:
 
-### Control Panel
+- Auto, Walk, Sit, Nap, Jump, Pounce, and Sync Behavior
+- size, pace, and energy
+- group pouncing, screen or ground roaming, follow, follow-pounce, physics, and
+  name tags
 
-![Control Panel](docs/screenshots/control-panel.png)
+There are also small built-in tools for notes, tasks, a focus timer, and basic
+activity stats. Notes, tasks, and the timer can pop out into their own windows.
 
-- **Per-companion controls** — size, pace, energy, and personality weight
-  sliders with live updates. Force behaviors (auto, walk, sit, nap, jump,
-  pounce) on individual companions.
-- **Group controls** — "All Animals" panel with one-click toggles: pounce
-  all, screen roaming, ground roaming, follow cursor, physics, name tags.
-  Global size/pace/energy sliders.
-- **System tray integration** — dock the panel to the tray. Press
-  `Ctrl+Alt+P` to bring it back.
+### Docking and window controls
 
-### Tools
+Drag the panel to the left or right edge of a display and it docks into a compact
+rail. Hover over it or move keyboard focus into it to expand; leave it and it
+folds away again after a short delay. A manual collapse stays collapsed until
+you deliberately leave and come back, so it does not instantly reopen under the
+same cursor. You can also dock left or right from the panel controls and undock
+from the dock header.
 
-![Timer Tool](docs/screenshots/timer-tool.png)
+![Compact edge dock](showcase/exports/screenshots/deskbuddies-03-compact-dock-web.png)
 
-- **Focus timer** — Pomodoro-style timer with a 25-minute default. Runs while
-  your companions keep you company. Pause, reset, adjust minutes.
-- **Task list** — simple checklist built into the timer tool.
+The title bar has separate actions because they are not the same thing:
 
-### Behavior Engine
+- **Minimize** minimizes the panel.
+- **Hide** sends the panel to the tray while the companions keep roaming.
+- **Quit** exits DeskBuddies. A running focus timer gets a confirmation first.
 
-Each companion has its own personality profile — weighted probabilities for
-idle, walk, sit, nap, stretch, watch, jump, and wander behaviors. Mochi
-watches more. Biscuit naps more. The capybara is just chill. Behaviors are
-weighted-random, so no two sessions look the same.
-
-### Overlay
-
-- **Transparent, click-through, always-on-top** — companions roam behind your
-  windows without intercepting clicks.
-- **Fountain prop** — a little water fountain sticker. Biscuit visits it
-  periodically for a drink.
-- **Multi-monitor aware** — overlay covers the primary display (multi-monitor
-  roaming is in progress).
-
-## Screenshots
-
-| Desktop Overlay | Control Panel | Timer Tool |
-|:---:|:---:|:---:|
-| ![desktop](docs/screenshots/desktop-overlay.png) | ![panel](docs/screenshots/control-panel.png) | ![timer](docs/screenshots/timer-tool.png) |
-
-### Video Demo
-
-See it in motion:
-
-[![DeskBuddies demo](docs/screenshots/desktop-overlay.png)](docs/screenshots/demo.mp4)
-
-## Tech Stack
-
-- Electron 32 + Vite 5 + React 18
-- TypeScript throughout (strict mode)
-- Vitest for unit tests (100+ tests across engine, components, and overlay logic)
-- Pure CSS animations — no canvas, no WebGL, no game engine, no Three.js
-- Custom SVG cat rigs with articulated limbs
-
-## Build
-
-```bash
-npm install
-npm run build   # type-check + vite build
-npm run dist    # build + electron-builder (NSIS installer + portable exe)
-```
-
-Requires Node 18+ and npm. For Windows portable/NSIS builds on Linux or macOS,
-Wine is needed (electron-builder handles this automatically).
-
-## Development
-
-```bash
-npm run dev      # starts vite dev server + electron
-npm test         # run vitest (100+ tests)
-```
-
-## Project Structure
-
-```
-electron/             Electron main + preload + window management
-  main.cjs             Main process, tray, window creation
-  preload.cjs          IPC bridge
-  overlayBounds.cjs    Multi-monitor overlay sizing
-  panelDocking.cjs     Panel dock/undock logic
-src/
-  avatars/             SVG companion rigs (CatWalkRig, Fountain)
-  components/           React UI (control cards, rail, tool drawer, timer)
-  overlay/              Overlay logic (companion sim, hit testing, bounds)
-  shared/               IPC bridge between panel and overlay
-  App.tsx               Main app shell (tray, panel rendering)
-  data.ts               Companion profiles and catalog (10 companions)
-  behaviorEngine.ts     Weighted behavior state machine
-  types.ts              Shared TypeScript types
-```
+Double-click the tray icon, choose **Show panel**, or press `Ctrl+Alt+P` to bring
+the panel back. The tray also has a reversible Follow mode checkbox and a real
+Quit command.
 
 ## Companions
 
-| Name | Species | Description |
-|------|---------|-------------|
-| Mochi | Calico cat | Watchful, stares at your cursor, prefers sitting |
-| Biscuit | Tuxedo cat | Lazy lounger, naps constantly, visits the fountain |
-| Yorkie | Yorkshire Terrier | Small and alert, medium energy |
-| Capy | Capybara | Maximum chill, minimum movement |
-| Peanut | Tiny elephant | Gentle giant, slow walker |
-| Bandit | Raccoon | Curious and quick, likes to roam |
-| Sprout | Blue monster | High energy, bouncy, chaotic |
+| Name | What are they? | General disposition |
+|---|---|---|
+| Mochi | Calico Japanese Bobtail | Alert, curious, and usually watching |
+| Biscuit | Cream-orange Maine Coon | Relaxed, playful, and very good at naps |
+| Yorkie | Yorkie terrier | Small, alert, and ready to move |
+| Capy | Capybara | Maximum chill |
+| Peanut | Tiny elephant | Gentle and unhurried |
+| Bandit | Ringtail buddy | Curious raccoon business |
+| Sprout | Tiny horn blob | Fast, bouncy, and a little chaotic |
 | Patch | Patch cat | Spotted and easygoing |
-| Keys | Keyboard buddy | Lives near your hands, follows typing rhythm |
-| Bag | Punching bag | Training dummy. It just stands there. |
+| Keys | Keyboard buddy | A cat with an extremely specific seat |
+| Bag | Training buddy | A punching bag. It mostly stands there. |
 
-## Contributing
+![Mochi and Biscuit's different cat varieties](showcase/exports/screenshots/deskbuddies-06-cat-varieties-web.png)
 
-PRs welcome! The easiest way to add a new companion:
+## Run it locally
 
-1. Draw an SVG rig in `src/avatars/` (look at CatWalkRig for the pattern).
-2. Add a profile to `src/data.ts` — the catalog companions show the shape.
-3. Set personality weights (idleWeight, walkWeight, sitWeight, etc.) in the
-   profile.
-4. Add tests for any new behavior or interaction.
+DeskBuddies currently targets Windows. You will need Node.js 18 or newer and
+npm.
+
+```powershell
+npm install
+npm run dev
+```
+
+`npm run dev` starts the Vite server and Electron together. DeskBuddies opens
+the panel and the transparent pet overlay as separate windows.
+
+Useful commands:
+
+```powershell
+npm test          # run the 271-test Vitest suite
+npm run build     # type-check, then build the renderer into build-output/
+npm run preview   # preview the renderer without Electron
+npm run dist      # build Windows NSIS and portable packages into release/
+```
+
+The packaged app loads its renderer from `resources/dist/`. The source build
+directory is named `build-output/` on purpose so it does not collide with the
+electron-builder output.
+
+## How it is put together
+
+DeskBuddies uses two Electron windows:
+
+1. The **panel window** runs the React controls and tools.
+2. The **overlay window** covers the primary work area with a transparent,
+   mostly click-through surface for the companions.
+
+The main process owns the windows, tray, docking, global shortcut, and cursor
+tracking. The panel sends companion settings to the overlay through the preload
+bridge. The overlay runs the behavior simulation and temporarily takes mouse
+input only when an interaction needs it.
+
+```text
+electron/
+  main.cjs                  tray, windows, docking, shortcuts, IPC
+  preload.cjs               contextBridge API for the renderer
+  overlayBounds.cjs         primary-display overlay bounds
+  panelDocking.cjs          dock geometry and persisted dock state
+src/
+  avatars/                  custom SVG rigs and the fountain
+  components/               companion controls, selector, tools, timer
+  overlay/                  simulation, hit testing, drag interaction
+  shared/                   panel ↔ overlay bridge
+  App.tsx                   control-panel shell
+  Overlay.tsx               transparent desktop overlay
+  behaviorEngine.ts         weighted behavior state machine
+  companionState.ts         companion catalog and summon state
+  data.ts                   the ten companion profiles
+showcase/
+  captures/                 genuine source captures and provenance
+  exports/                  README, product, and social media exports
+  video/                    showcase video compositions
+```
+
+The test suite covers the behavior engine, storage and state migration, panel
+controls, docking, overlay hit testing, pointer recovery, simulation, SVG rigs,
+the timer, and the panel/overlay bridge. It currently has 271 passing tests.
+
+## Adding a companion
+
+The avatar system is meant to be extended:
+
+1. Draw the SVG rig in `src/avatars/` using the existing rigs as a pattern.
+2. Add its profile and colors in `src/data.ts`.
+3. Give it personality weights for walking, sitting, sleeping, watching, and the
+   rest.
+4. Add tests for any new rendering or behavior.
+
+## Known issues
+
+- The overlay follows the primary display. Pets do not yet roam across multiple
+  monitors as one continuous space.
+- Live pet positions are simulation state and reset when the app relaunches.
+- Windows is the currently tested and packaged target; other desktop platforms
+  have not been verified for this version.
 
 ## License
 
-MIT — see [LICENSE](LICENSE)
-
-## Known Issues
-
-- On some Linux window managers the transparent overlay doesn't render
-  correctly. Works on Windows 10/11 and macOS.
-- Multi-monitor setups: pets stay on the primary monitor for now. Working on it.
-- The fountain position resets on app restart.
-- Companion positions reset on app restart (persistence is per-session via
-  localStorage, not on-disk).
+MIT — see [LICENSE](LICENSE).

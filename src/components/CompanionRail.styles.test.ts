@@ -27,4 +27,8 @@ describe("companion rail layout", () => {
     expect(rule(".app-shell.docked.collapsed")).toContain("background:transparent");
     expect(styles).toContain("@media (prefers-reduced-motion: reduce)");
   });
+
+  it("hides the dock title so the 350px header reserves space for labeled actions", () => {
+    expect(rule(".app-shell.docked .dock-header-title")).toContain("display:none");
+  });
 });
