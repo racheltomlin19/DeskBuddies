@@ -35,6 +35,9 @@ sprite sheets.
 - **Follow without floating around.** Follow Cursor can be switched on or off at
   any time. Grounded follow keeps the pets on the floor while they chase the
   cursor horizontally; screen roaming lets them use more of the desktop.
+
+![Grounded Follow mode](showcase/exports/screenshots/deskbuddies-05-grounded-follow-web.png)
+
 - **Hang out together.** Nearby resting cats can greet and cuddle. Biscuit also
   wanders over to the fountain for a drink.
 - **Stay out of the way.** The transparent overlay passes normal clicks through
@@ -66,6 +69,16 @@ same cursor. You can also dock left or right from the panel controls and undock
 from the dock header.
 
 ![Compact edge dock](showcase/exports/screenshots/deskbuddies-03-compact-dock-web.png)
+
+Move the cursor over the docked rail — or tab keyboard focus into it — and it
+slides out to the full panel:
+
+![Expanded hover dock](showcase/exports/screenshots/deskbuddies-04-hover-dock-web.png)
+
+Leave the expanded dock and it folds back into the rail after a short delay. A
+manual collapse stays collapsed until you deliberately leave and come back, so
+it does not instantly reopen under the same cursor. You can also dock left or
+right from the panel controls and undock from the dock header.
 
 The title bar has separate actions because they are not the same thing:
 
