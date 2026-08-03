@@ -1,5 +1,9 @@
 # DeskBuddies 🐱
 
+Now Featuring Gus! 
+![alt text](showcase/captures/gus_nap.png)
+![alt text](showcase/captures/gussit.png)
+![alt text](showcase/captures/guswalk.png)
 Little hand-drawn companions that wander around your desktop, nap near the
 taskbar, watch your cursor, and occasionally tear across the screen for no good
 reason.
