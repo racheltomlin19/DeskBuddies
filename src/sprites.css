@@ -46,6 +46,13 @@
   animation: pet-squash 0.72s ease-out;
 }
 
+/* Gus's authored raster poses supply the body language; simulation movement
+   supplies the travel. Avoid the shared rocking/squash transforms that made
+   walking and jumping read as the same rotating sticker. */
+.overlay-pet.behavior-jump .gus-sprite {
+  animation: none;
+}
+
 .pet-walk-body {
   transform-origin: 50% 90%;
   animation: pet-walk 0.48s ease-in-out infinite;
@@ -78,6 +85,37 @@
   }
   50% {
     rotate: 1deg;
+  }
+}
+
+/* Shroomie's tiny feet alternate while its cap does the shared walking bob. */
+.pose-walk .shroomie-step,
+.pose-chase .shroomie-step,
+.pose-zoomies .shroomie-step,
+.pose-walk .kudo-step,
+.pose-chase .kudo-step,
+.pose-zoomies .kudo-step {
+  transform-box: fill-box;
+  transform-origin: 50% 50%;
+  animation: shroomie-step 0.48s ease-in-out infinite;
+}
+
+.pose-walk .shroomie-step-right,
+.pose-chase .shroomie-step-right,
+.pose-zoomies .shroomie-step-right,
+.pose-walk .kudo-step-right,
+.pose-chase .kudo-step-right,
+.pose-zoomies .kudo-step-right {
+  animation-delay: -0.24s;
+}
+
+@keyframes shroomie-step {
+  0%,
+  100% {
+    transform: translateY(1px);
+  }
+  50% {
+    transform: translateY(-5px);
   }
 }
 
@@ -259,6 +297,12 @@
   .overlay-pet.behavior-sleep .pet-svg,
   .overlay-pet.behavior-jump .pet-svg,
   .pet-walk-body,
+  .pose-walk .shroomie-step,
+  .pose-chase .shroomie-step,
+  .pose-zoomies .shroomie-step,
+  .pose-walk .kudo-step,
+  .pose-chase .kudo-step,
+  .pose-zoomies .kudo-step,
   .pose-watch,
   .pose-stretch,
   .pose-walk .leg,

@@ -13,7 +13,7 @@ export interface CompanionControlCardProps {
 
 export function CompanionControlCard({ pet, heldMode, onHeldMode, onAction, onUpdatePet, onSyncBehavior }: CompanionControlCardProps) {
   return <article className="companion-control-card" aria-label={`${pet.name} controls`}>
-    <header><PetAvatar pet={pet} compact /><div className="companion-identity"><strong className="companion-name">{pet.name}</strong><small className="companion-breed">{pet.breedLabel}</small>{pet.description && <p className="companion-description">{pet.description}</p>}</div></header>
+    <header><PetAvatar pet={pet} behavior={heldMode ?? "idle"} compact /><div className="companion-identity"><strong className="companion-name">{pet.name}</strong><small className="companion-breed">{pet.breedLabel}</small>{pet.description && <p className="companion-description">{pet.description}</p>}</div></header>
     <div className="control-buttons">
       <button type="button" aria-label={`Auto ${pet.name}`} aria-pressed={heldMode === null} onClick={() => onHeldMode(pet.id, null)}>Auto</button>
       <button type="button" aria-label={`Walk ${pet.name}`} aria-pressed={heldMode === "walk"} onClick={() => onHeldMode(pet.id, "walk")}>Walk</button>

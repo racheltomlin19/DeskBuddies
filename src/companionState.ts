@@ -1,4 +1,4 @@
-import { catalogCompanions, customCompanions, initialCompanionState } from "./data";
+import { initialCompanionState } from "./data";
 import type { CompanionState, PetProfile } from "./types";
 
 export const COMPANION_SCHEMA_VERSION = 2;
@@ -81,7 +81,7 @@ export function normalizeCompanionState(value: unknown): CompanionState {
   }
 
   const storedById = new Map(value.companions.map((pet) => [pet.id, pet]));
-  const companions = [...customCompanions, ...catalogCompanions].map((defaultPet) =>
+  const companions = initialCompanionState.companions.map((defaultPet) =>
     mergeStoredCompanion(defaultPet, storedById.get(defaultPet.id))
   );
 

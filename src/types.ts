@@ -1,4 +1,4 @@
-export type Species = "cat" | "dog" | "capybara" | "elephant" | "raccoon" | "monster" | "object";
+export type Species = "cat" | "dog" | "capybara" | "elephant" | "raccoon" | "monster" | "object" | "mushroom";
 
 export type Pattern =
   | "patch-cat"
@@ -14,7 +14,10 @@ export type Pattern =
   | "tabby"
   | "cream-orange-tabby"
   | "tuxedo"
-  | "yorkie";
+  | "yorkie"
+  | "shroomie"
+  | "gus"
+  | "kudo";
 
 export type AuthoredAvatar = "mochi" | "biscuit";
 export type AvatarId = Pattern | AuthoredAvatar;
@@ -39,7 +42,6 @@ export type Behavior =
   | "zoomies"
   | "climb"
   | "perch"
-  | "drink"
   | "greet"
   | "come"
   | "react";
@@ -118,13 +120,7 @@ export interface EngineSettings {
   pounce: boolean;
   roamMode: RoamMode;
   launchAtLogin: boolean;
-  fountain: FountainSettings;
   globalScale: number;
   globalSpeed: number;
   companionControlsVersion: number;
-}
-
-export interface FountainSettings {
-  enabled: boolean;
-  x: number;
 }

@@ -118,4 +118,5 @@ describe("CompanionControlCard", () => {
     expect(markup).toContain('class="companion-breed"');
     expect(styles).toMatch(/\.companion-identity\s*\{[^}]*display:\s*grid;[^}]*gap:/s);
   });
+
 });

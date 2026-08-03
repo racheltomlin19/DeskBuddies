@@ -2,8 +2,7 @@ import { Trash2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { PointerEvent } from "react";
 import { PetAvatar } from "./PetAvatar";
-import { Fountain } from "./avatars/Fountain";
-import { getFountainX, getPetSize } from "./behaviorEngine";
+import { getPetSize } from "./behaviorEngine";
 import { normalizeSnapshot, type OverlaySnapshot } from "./shared/overlayBridge";
 import { findPetAtPoint, getTrashZone, isPointInTrashZone, type PetBox } from "./overlay/hitTest";
 import { useCompanionSimulation, type SimulationBounds } from "./overlay/useCompanionSimulation";
@@ -330,9 +329,6 @@ export function Overlay() {
     if (event.pointerId === capturedPointerIdRef.current) terminationRef.current?.terminate("lost-capture");
   }, []);
 
-  const fountainSize = 120;
-  const fountainLeft = getFountainX(snapshot.settings, window.innerWidth) - fountainSize / 2;
-
   const trashZone = draggingId ? getTrashZone(getBounds()) : null;
   const draggedRuntime = draggingId ? runtimeMap.get(draggingId) : undefined;
   const draggedPet = draggingId ? snapshot.companions.find((pet) => pet.id === draggingId) : undefined;
@@ -351,15 +347,6 @@ export function Overlay() {
 
   return (
     <div className="overlay-stage">
-      {snapshot.settings.fountain.enabled && (
-        <div
-          className="overlay-fountain"
-          style={{ transform: `translate3d(${fountainLeft}px, ${window.innerHeight - 150}px, 0)`, width: fountainSize }}
-          aria-hidden="true"
-        >
-          <Fountain />
-        </div>
-      )}
       {trashZone && (
         <div
           className={`overlay-trash ${trashActive ? "active" : ""}`}

@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { CatWalkRig } from "./avatars/CatWalkRig";
+import { GusSprite } from "./avatars/GusSprite";
 import type { Behavior, PetProfile } from "./types";
 
 interface PetAvatarProps {
@@ -49,6 +50,12 @@ export function PetAvatar({ pet, behavior = "idle", compact = false }: PetAvatar
       return <RaccoonBuddy {...props} />;
     case "yorkie":
       return <YorkieBuddy {...props} />;
+    case "shroomie":
+      return <ShroomieBuddy {...props} />;
+    case "gus":
+      return <GusSprite {...props} />;
+    case "kudo":
+      return <KudoBuddy {...props} />;
     default:
       return <PatchCat {...props} />;
   }
@@ -296,6 +303,151 @@ function PatchCat({ pet, behavior, compact }: Required<PetAvatarProps>) {
         {/* white peeking paws with toe beans */}
         <CatPaw x={45} color={pet.primaryColor} />
         <CatPaw x={101} color={pet.primaryColor} />
+      </g>
+    </SvgShell>
+  );
+}
+
+function ShroomieBuddy({ pet, behavior, compact }: Required<PetAvatarProps>) {
+  const sleeping = behavior === "sleep";
+  const watching = behavior === "watch";
+  const stretching = behavior === "stretch";
+  const walking = isLocomotion(behavior);
+  const poseClass = `shroomie-avatar pose-${behavior}${walking ? " pet-walk-body" : ""}`;
+  const bodyY = sleeping ? 96 : stretching ? 88 : 92;
+  const footY = sleeping ? 126 : stretching ? 128 : 124;
+
+  return (
+    <SvgShell label={`${pet.name} ${pet.breedLabel}`} compact={compact}>
+      <g className={poseClass}>
+        {/* broad plushy cap, with its underside peeking out above the face */}
+        <path
+          d="M31 79 C31 39 55 17 90 17 C125 17 149 39 149 79 C149 89 144 94 137 97 L43 97 C36 94 31 89 31 79Z"
+          fill={pet.secondaryColor}
+          stroke={outline}
+          strokeWidth="5"
+          strokeLinejoin="round"
+        />
+        <path
+          d="M42 84 C54 91 126 91 138 84 C137 95 125 101 90 101 C55 101 43 95 42 84Z"
+          fill="#f8c995"
+          stroke={outline}
+          strokeWidth="3.5"
+          strokeLinejoin="round"
+        />
+        <path d="M52 43 C62 28 79 24 91 25 C72 35 67 48 67 62 C57 60 52 54 52 43Z" fill="#f58d49" opacity="0.65" />
+        {/* irregular soft cream spots, inspired by the reference plush rather than a repeated pattern */}
+        <ellipse className="shroomie-spot" cx="56" cy="67" rx="13" ry="10" fill="#f7e7c9" />
+        <ellipse className="shroomie-spot" cx="90" cy="43" rx="11" ry="8" fill="#fff0d4" />
+        <path className="shroomie-spot" d="M115 53 C127 48 137 55 134 65 C131 73 117 76 110 69 C106 64 109 56 115 53Z" fill="#f6dfbb" />
+        <ellipse className="shroomie-spot" cx="79" cy="78" rx="7" ry="5" fill="#f9e9ca" />
+        <path d="M43 88 C57 96 123 96 137 88" fill="none" stroke="#c46330" strokeWidth="2.5" strokeLinecap="round" opacity="0.4" />
+
+        {/* rounded cream stalk/body */}
+        <path
+          d={`M55 ${bodyY} C53 109 49 122 57 130 C67 138 113 138 123 130 C131 122 127 109 125 ${bodyY} C115 87 65 87 55 ${bodyY}Z`}
+          fill={pet.primaryColor}
+          stroke={outline}
+          strokeWidth="5"
+          strokeLinejoin="round"
+        />
+        <path d="M63 109 C60 116 60 123 64 128 M117 109 C120 116 120 123 116 128" fill="none" stroke={pet.accentColor} strokeWidth="2.6" strokeLinecap="round" opacity="0.32" />
+
+        {/* relaxed, sleepy little face */}
+        {sleeping ? (
+          <>
+            <path d="M68 108 C72 112 79 112 83 108" fill="none" stroke={face} strokeWidth="3.5" strokeLinecap="round" />
+            <path d="M97 108 C101 112 108 112 112 108" fill="none" stroke={face} strokeWidth="3.5" strokeLinecap="round" />
+          </>
+        ) : watching ? (
+          <>
+            <ellipse cx="76" cy="108" rx="5.4" ry="6.6" fill={pet.eyeColor} />
+            <ellipse cx="104" cy="108" rx="5.4" ry="6.6" fill={pet.eyeColor} />
+            <circle cx="78" cy="105.5" r="1.7" fill="#ffffff" />
+            <circle cx="106" cy="105.5" r="1.7" fill="#ffffff" />
+          </>
+        ) : (
+          <>
+            <path d="M68 108 C72 104 79 104 83 108" fill="none" stroke={face} strokeWidth="3.5" strokeLinecap="round" />
+            <path d="M97 108 C101 104 108 104 112 108" fill="none" stroke={face} strokeWidth="3.5" strokeLinecap="round" />
+          </>
+        )}
+        <path d="M87 117 C89 119 91 119 93 117" fill="none" stroke={face} strokeWidth="2.7" strokeLinecap="round" />
+        <ellipse cx="63" cy="117" rx="6" ry="3.5" fill="#efb3a1" opacity="0.5" />
+        <ellipse cx="117" cy="117" rx="6" ry="3.5" fill="#efb3a1" opacity="0.5" />
+
+        {/* short alternating feet make Shroomie read clearly when walking */}
+        <g className="shroomie-step shroomie-step-left">
+          <ellipse cx="70" cy={footY} rx={15} ry="8" fill={pet.primaryColor} stroke={outline} strokeWidth="4" />
+          <path d={`M63 ${footY} L63 ${footY + 2}`} stroke={pet.accentColor} strokeWidth="2" strokeLinecap="round" opacity="0.4" />
+        </g>
+        <g className="shroomie-step shroomie-step-right">
+          <ellipse cx="110" cy={footY} rx={15} ry="8" fill={pet.primaryColor} stroke={outline} strokeWidth="4" />
+          <path d={`M117 ${footY} L117 ${footY + 2}`} stroke={pet.accentColor} strokeWidth="2" strokeLinecap="round" opacity="0.4" />
+        </g>
+      </g>
+    </SvgShell>
+  );
+}
+
+function KudoBuddy({ pet, behavior, compact }: Required<PetAvatarProps>) {
+  const sleeping = behavior === "sleep";
+  const watching = behavior === "watch";
+  const stretching = behavior === "stretch";
+  const walking = isLocomotion(behavior);
+  const poseClass = `kudo-avatar pose-${behavior}${walking ? " pet-walk-body" : ""}`;
+  const white = "#fffdf7";
+
+  return (
+    <SvgShell label={`${pet.name} ${pet.breedLabel}`} compact={compact}>
+      <g className={poseClass}>
+        {/* A plush, ringed tail curls around Kudo's broad resting silhouette. */}
+        <path d="M117 116 C150 133 168 111 157 82" fill="none" stroke={outline} strokeWidth="21" strokeLinecap="round" />
+        <path d="M117 116 C150 133 168 111 157 82" fill="none" stroke={pet.secondaryColor} strokeWidth="14" strokeLinecap="round" />
+        <path className="kudo-tabby-marking" d="M135 119 L140 108 M148 112 L153 101 M157 100 L161 92" stroke={pet.accentColor} strokeWidth="4" strokeLinecap="round" />
+
+        {/* White belly and charcoal saddle echo the large tabby patches in the photos. */}
+        <path d="M49 129 C43 101 58 78 90 78 C122 78 138 101 130 129 C113 137 67 137 49 129Z" fill={white} stroke={outline} strokeWidth="5" strokeLinejoin="round" />
+        <path className="kudo-tabby-marking" d="M55 103 C58 85 70 79 90 79 C110 79 124 86 127 103 C119 100 114 108 111 120 C104 117 99 113 90 113 C81 113 76 117 69 120 C66 108 61 100 55 103Z" fill={pet.secondaryColor} />
+        <path d="M77 91 C78 105 77 119 74 130 L106 130 C103 117 102 104 104 91 C97 88 83 88 77 91Z" fill={white} />
+        <path className="kudo-tabby-marking" d="M57 106 L68 109 M56 117 L67 120 M123 106 L112 109 M124 117 L113 120" stroke={pet.accentColor} strokeWidth="3.4" strokeLinecap="round" />
+
+        {/* White face with an asymmetrical charcoal crown and cheek markings. */}
+        <path d="M53 60 L59 24 L81 39 C87 36 93 36 99 39 L121 24 L127 60 C130 81 114 92 90 92 C66 92 50 81 53 60Z" fill={white} stroke={outline} strokeWidth="5" strokeLinejoin="round" />
+        <path className="kudo-tabby-marking" d="M55 56 C57 35 70 23 90 23 C108 23 121 34 125 53 C115 48 106 44 97 43 C93 49 88 52 82 48 C74 44 65 48 55 56Z" fill={pet.secondaryColor} />
+        <path className="kudo-tabby-marking" d="M74 42 L72 30 M82 45 L82 31 M90 46 L90 31 M98 45 L100 31 M106 42 L109 30" stroke={pet.accentColor} strokeWidth="3.3" strokeLinecap="round" />
+        <path className="kudo-tabby-marking" d="M58 62 L69 59 M59 70 L70 68 M122 62 L111 59 M121 70 L110 68" stroke={pet.accentColor} strokeWidth="3" strokeLinecap="round" />
+        <path d="M66 70 C70 80 80 86 90 86 C100 86 110 80 114 70 C108 84 100 91 90 91 C80 91 72 84 66 70Z" fill={white} />
+        {/* Kudo's dark nose bridge is distinct from the forehead crown and leaves both cheeks white. */}
+        <path className="kudo-nose-patch" d="M84 50 C87 55 88 62 87 67 C85 69 85 72 87 74 C89 72 91 72 93 74 C95 72 95 69 93 67 C92 62 93 55 96 50 C92 47 88 47 84 50Z" fill={pet.secondaryColor} />
+
+        {sleeping ? (
+          <>
+            <path d="M67 61 C71 66 79 66 83 61" fill="none" stroke={face} strokeWidth="3.5" strokeLinecap="round" />
+            <path d="M97 61 C101 66 109 66 113 61" fill="none" stroke={face} strokeWidth="3.5" strokeLinecap="round" />
+          </>
+        ) : (
+          <>
+            <ellipse cx="75" cy="62" rx={watching ? 6.8 : 5.9} ry={watching ? 7.7 : 6.7} fill={pet.eyeColor} />
+            <ellipse cx="105" cy="62" rx={watching ? 6.8 : 5.9} ry={watching ? 7.7 : 6.7} fill={pet.eyeColor} />
+            <circle cx="77" cy="59.5" r="1.9" fill="#ffffff" />
+            <circle cx="107" cy="59.5" r="1.9" fill="#ffffff" />
+          </>
+        )}
+        <path d="M86 72 C88.5 70.5 91.5 70.5 94 72 C92.5 76 87.5 76 86 72Z" fill="#c96d61" />
+        <path d="M90 76 C88 80 83 81 79 78 M90 76 C92 80 97 81 101 78" fill="none" stroke={face} strokeWidth="2.7" strokeLinecap="round" />
+        <ellipse cx="62" cy="74" rx="6" ry="3.5" fill={blushPink} opacity="0.38" />
+        <ellipse cx="118" cy="74" rx="6" ry="3.5" fill={blushPink} opacity="0.38" />
+
+        {/* Kudo's all-white paws alternate while walking and lift into a long stretch. */}
+        <g className="kudo-step kudo-step-left">
+          <path className="kudo-white-paw" d={stretching ? "M68 108 C61 91 58 77 61 61" : "M66 104 C64 115 63 124 66 132 L82 132 C84 122 83 113 81 104Z"} fill={white} stroke={outline} strokeWidth="3.8" strokeLinejoin="round" />
+          {!stretching && <path d="M72 126 L72 131" stroke={pet.accentColor} strokeWidth="2" strokeLinecap="round" opacity="0.45" />}
+        </g>
+        <g className="kudo-step kudo-step-right">
+          <path className="kudo-white-paw" d={stretching ? "M112 108 C119 91 122 77 119 61" : "M99 104 C97 115 97 124 100 132 L116 132 C119 122 117 113 115 104Z"} fill={white} stroke={outline} strokeWidth="3.8" strokeLinejoin="round" />
+          {!stretching && <path d="M109 126 L109 131" stroke={pet.accentColor} strokeWidth="2" strokeLinecap="round" opacity="0.45" />}
+        </g>
       </g>
     </SvgShell>
   );

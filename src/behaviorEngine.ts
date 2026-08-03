@@ -20,8 +20,7 @@ const FRAME_MS_60HZ = 1000 / 60;
 const SCREEN_POSE_MINIMUM_MS: Partial<Record<Behavior, number>> = {
   stretch: 1450,
   greet: 900,
-  react: 850,
-  drink: 3600
+  react: 850
 };
 
 function getScreenPoseMinimumMs(behavior: Behavior, energy: number): number | undefined {
@@ -243,27 +242,6 @@ export function advanceCompanion(
     return { ...next, y: ground };
   }
 
-  // Drink: walk to the fountain target, then lap for a few seconds.
-  if (next.behavior === "drink") {
-    const target = next.targetX ?? next.x;
-    const dx = target - next.x;
-    if (Math.abs(dx) > 6) {
-      const step = (0.5 + pet.speed * 0.8) * settings.globalSpeed * (delta / 16.67);
-      const direction: 1 | -1 = dx > 0 ? 1 : -1;
-      return {
-        ...next,
-        x: clamp(next.x + Math.min(Math.abs(dx), step) * direction, 8, maxX),
-        y: ground,
-        direction,
-        behavior: "drink"
-      };
-    }
-    if (elapsed > 3600) {
-      return { ...next, y: ground, behavior: "idle", targetX: undefined, stateStartedAt: now };
-    }
-    return { ...next, y: ground };
-  }
-
   // Climb: scale the wall up to the perch height.
   if (next.behavior === "climb") {
     const perchY = 24;
@@ -381,7 +359,9 @@ export function applyNeighbors(
   if (dist > 140 || !cooldownOk) {
     return runtimes;
   }
-  if (random() >= chanceForDelta(0.006, deltaMs)) {
+  // Keep combined group interruptions below two per minute now that the
+  // removed fountain no longer consumes a random sample between passes.
+  if (random() >= chanceForDelta(0.0038, deltaMs)) {
     return runtimes;
   }
 
@@ -410,41 +390,6 @@ export function applyNeighbors(
     });
   }
   return runtimes.map((runtime) => (updates.has(runtime.id) ? { ...runtime, ...updates.get(runtime.id) } : runtime));
-}
-
-/** Absolute x of the fountain from its stored width fraction. */
-export function getFountainX(settings: EngineSettings, width: number) {
-  return clamp(settings.fountain.x * width, 40, Math.max(40, width - 40));
-}
-
-/**
- * Sends Biscuit to the fountain to drink now and then. Pure pre-pass; Mochi
- * and catalog pets ignore the fountain. No-op when the fountain is disabled.
- */
-export function applyFountain(
-  runtimes: PetRuntime[],
-  pets: PetProfile[],
-  settings: EngineSettings,
-  bounds: StageBounds,
-  now: number,
-  random: () => number = Math.random,
-  deltaMs: number = FRAME_MS_60HZ
-): PetRuntime[] {
-  if (!settings.fountain.enabled) {
-    return runtimes;
-  }
-  const fountainX = getFountainX(settings, bounds.width);
-  const petById = new Map(pets.map((pet) => [pet.id, pet]));
-  return runtimes.map((runtime) => {
-    const pet = petById.get(runtime.id);
-    if (!pet || pet.avatar !== "biscuit" || runtime.behavior !== "idle") {
-      return runtime;
-    }
-    if (now - runtime.lastInteractionAt < 8000 || random() >= chanceForDelta(0.004, deltaMs)) {
-      return runtime;
-    }
-    return { ...runtime, behavior: "drink", targetX: fountainX, stateStartedAt: now, lastInteractionAt: now };
-  });
 }
 
 export function getPetSize(pet: PetProfile, settings: EngineSettings) {
@@ -624,7 +569,8 @@ function advanceScreenRoam(
     const step = Math.min(dist, (1.2 + pet.speed * 1.7) * settings.globalSpeed * (delta / 16.67));
     const ratio = step / dist;
     const direction: 1 | -1 = dx >= 0 ? 1 : -1;
-    const behavior: Behavior = dist > 320 ? "chase" : "walk";
+    const verticalTravel = Math.abs(dy) > Math.max(50, size * 0.35);
+    const behavior: Behavior = verticalTravel || dist > 320 ? "chase" : "walk";
     return {
       ...next,
       x: clamp(next.x + dx * ratio, 8, maxX),
@@ -686,7 +632,7 @@ export function applyCuddle(
     return runtimes;
   }
   const cooldownOk = now - mochi.lastInteractionAt > 6000 && now - biscuit.lastInteractionAt > 6000;
-  if (!cooldownOk || random() >= chanceForDelta(0.002, deltaMs)) {
+  if (!cooldownOk || random() >= chanceForDelta(0.0013, deltaMs)) {
     return runtimes;
   }
 
@@ -822,7 +768,6 @@ function defaultScaleSettings(): EngineSettings {
     pounce: false,
     roamMode: "ground",
     launchAtLogin: false,
-    fountain: { enabled: false, x: 0.7 },
     globalScale: 1,
     globalSpeed: 1,
     companionControlsVersion: 1

@@ -18,7 +18,7 @@ export const customCompanions: PetProfile[] = [
     species: "cat",
     kind: "custom",
     locked: false,
-    summoned: true,
+    summoned: false,
     avatar: "mochi",
     pattern: "calico-bobtail",
     breedLabel: "calico Japanese Bobtail",
@@ -47,7 +47,7 @@ export const customCompanions: PetProfile[] = [
     species: "cat",
     kind: "custom",
     locked: false,
-    summoned: true,
+    summoned: false,
     avatar: "biscuit",
     pattern: "cream-orange-tabby",
     breedLabel: "cream-orange Maine Coon",
@@ -73,6 +73,65 @@ export const customCompanions: PetProfile[] = [
 ];
 
 export const catalogCompanions: PetProfile[] = [
+  {
+    id: "gus",
+    name: "Gus",
+    species: "cat",
+    kind: "catalog",
+    locked: false,
+    summoned: true,
+    avatar: "gus",
+    pattern: "gus",
+    breedLabel: "ginger tabby lounger",
+    description: "A stocky ginger tabby with four white socks, a soft bib, and strong opinions about the comfiest chair.",
+    primaryColor: "#d7893b",
+    secondaryColor: "#a95627",
+    accentColor: "#71422f",
+    eyeColor: "#a48d55",
+    size: 1.08,
+    speed: 0.52,
+    energy: 0.46,
+    personality: calmCatalogPersonality
+  },
+  {
+    id: "kudo",
+    name: "Kudo",
+    species: "cat",
+    kind: "catalog",
+    locked: false,
+    summoned: false,
+    avatar: "kudo",
+    pattern: "kudo",
+    breedLabel: "black-and-white tabby",
+    description: "A gentle black-and-white tabby who turns every nearby cushion into a birthday throne.",
+    primaryColor: "#fffdf7",
+    secondaryColor: "#383735",
+    accentColor: "#56514b",
+    eyeColor: "#7e9a72",
+    size: 1.04,
+    speed: 0.48,
+    energy: 0.42,
+    personality: calmCatalogPersonality
+  },
+  {
+    id: "shroomie",
+    name: "Shroomie",
+    species: "mushroom",
+    kind: "catalog",
+    locked: false,
+    summoned: false,
+    avatar: "shroomie",
+    pattern: "shroomie",
+    breedLabel: "sleepy spotted mushroom",
+    primaryColor: "#f5ead7",
+    secondaryColor: "#e76f25",
+    accentColor: "#7b4230",
+    eyeColor: "#4b3027",
+    size: 1.14,
+    speed: 0.42,
+    energy: 0.38,
+    personality: calmCatalogPersonality
+  },
   {
     id: "bag",
     name: "Bag",
@@ -229,7 +288,7 @@ export const catalogCompanions: PetProfile[] = [
 
 export const initialCompanionState: CompanionState = {
   schemaVersion: 2,
-  companions: [...customCompanions, ...catalogCompanions]
+  companions: [catalogCompanions[0], ...customCompanions, ...catalogCompanions.slice(1)]
 };
 
 export const initialPets: PetProfile[] = initialCompanionState.companions;
@@ -245,7 +304,6 @@ export const initialSettings: EngineSettings = {
   pounce: true,
   roamMode: "ground",
   launchAtLogin: false,
-  fountain: { enabled: true, x: 0.7 },
   globalScale: 1,
   globalSpeed: 1,
   companionControlsVersion: 1

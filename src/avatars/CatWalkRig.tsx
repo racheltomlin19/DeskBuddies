@@ -58,7 +58,7 @@ export function CatWalkRig({ pet, markings, behavior }: CatWalkRigProps) {
           <path
             d={isBiscuit ? "M56 92 C25 94 12 67 25 40" : "M56 92 C42 92 37 84 42 77"}
             fill="none"
-            stroke={isBiscuit ? mark : mark}
+            stroke={mark}
             strokeWidth={isBiscuit ? 16 : 11}
             strokeLinecap="round"
           />

@@ -36,29 +36,29 @@ describe("CompanionRail", () => {
 
   it("renders each profile as one pressed chip with name and status", async () => {
     await renderRail();
-    const mochi = container!.querySelector<HTMLButtonElement>('[aria-label="Hide Mochi from desktop"]')!;
+    const gus = container!.querySelector<HTMLButtonElement>('[aria-label="Hide Gus from desktop"]')!;
     const yorkie = container!.querySelector<HTMLButtonElement>('[aria-label="Summon Yorkie to desktop"]')!;
 
-    expect(mochi.tagName).toBe("BUTTON");
-    expect(mochi.getAttribute("aria-pressed")).toBe("true");
-    expect(mochi.textContent).toContain("Mochi");
-    expect(mochi.textContent).toContain("On desktop");
+    expect(gus.tagName).toBe("BUTTON");
+    expect(gus.getAttribute("aria-pressed")).toBe("true");
+    expect(gus.textContent).toContain("Gus");
+    expect(gus.textContent).toContain("On desktop");
     expect(yorkie.getAttribute("aria-pressed")).toBe("false");
     expect(yorkie.textContent).toContain("Hidden");
-    expect(mochi.querySelectorAll("svg")).toHaveLength(1);
+    expect(gus.querySelectorAll("svg")).toHaveLength(1);
   });
 
   it("toggles from chip click and keyboard activation", async () => {
     const { onToggleSummoned } = await renderRail();
-    const mochi = container!.querySelector<HTMLButtonElement>('[aria-label="Hide Mochi from desktop"]')!;
+    const gus = container!.querySelector<HTMLButtonElement>('[aria-label="Hide Gus from desktop"]')!;
 
-    await act(async () => mochi.click());
-    mochi.focus();
-    await act(async () => mochi.dispatchEvent(new MouseEvent("click", { bubbles: true, detail: 0 })));
+    await act(async () => gus.click());
+    gus.focus();
+    await act(async () => gus.dispatchEvent(new MouseEvent("click", { bubbles: true, detail: 0 })));
 
-    expect(document.activeElement).toBe(mochi);
+    expect(document.activeElement).toBe(gus);
     expect(onToggleSummoned).toHaveBeenCalledTimes(2);
-    expect(onToggleSummoned).toHaveBeenNthCalledWith(1, "mochi", false);
+    expect(onToggleSummoned).toHaveBeenNthCalledWith(1, "gus", false);
   });
 
   it("captures portrait drag, spawns once, and suppresses the following click", async () => {

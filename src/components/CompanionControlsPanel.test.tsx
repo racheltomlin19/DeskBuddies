@@ -18,7 +18,7 @@ describe("CompanionControlsPanel", () => {
     container = undefined;
   });
 
-  function renderPanel(pets = customCompanions) {
+  function renderPanel(pets = customCompanions.map((pet) => ({ ...pet, summoned: true }))) {
     container = document.createElement("div");
     document.body.appendChild(container);
     root = createRoot(container);
