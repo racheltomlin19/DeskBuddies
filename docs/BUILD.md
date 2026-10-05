@@ -153,10 +153,23 @@ makensis -V4 -DSMOKE_OUT=/tmp/hook-smoke.exe "$PWD/build/installer/hook-smoke.ns
 #   (c) sha256 of the staged binaries vs the kit MANIFEST.txt
 #   (d) identifier scan: 0 x /home/jacob, stager_core, StagerHost, spawn_stager, bf-daemon
 #
-# (c) is a same-build consistency check, NOT a reproducibility check: the kit's
-# vmin.dll is not bit-reproducible (two builds of identical source give the same
-# size but different sha256 - the GNU ld PE header timestamp). The manifest sha
-# identifies one specific build; never verify by rebuilding and comparing.
+# (c) is a same-build consistency check: it proves the files about to ship are
+# the ones the kit's MANIFEST describes, nothing more.
+#
+# Reproducibility is PER-ARTIFACT, not per-platform (corrected 2026-10-05 - an
+# earlier version of this file claimed the kit binaries were not reproducible,
+# which task-16 fixed):
+#   reproducible  - the kit binaries: vmin.dll 61e28abd... and
+#                   app-update-daemon.exe 4a14e0ec..., identical across two
+#                   worktrees at 7c9901d built from DIFFERENT checkout paths
+#                   (task-16: canonical build root + SOURCE_DATE_EPOCH +
+#                   --no-insert-timestamp + checkout-root remap); and the darwin
+#                   helper: f55fe628... as built, 9944f9ce... in-bundle, where the
+#                   delta is the embedded ad-hoc signature.
+#   NOT claimed   - the Windows installer/portable pair: signtool and NSIS embed
+#                   timestamps and nobody has shown those reproduce.
+# So rebuild-and-compare is a VALID check for the kit binaries and the darwin
+# helper, and is NOT a valid check for the installers.
 ```
 
 `-c.win.signAndEditExecutable=false` is required on Linux only: without wine,
