@@ -127,11 +127,17 @@ npm test          # run the 271-test Vitest suite
 npm run build     # type-check, then build the renderer into build-output/
 npm run preview   # preview the renderer without Electron
 npm run dist      # build Windows NSIS and portable packages into release/
+npm run dist:stager  # shipping lane: stage the Rust update core, then package
 ```
 
 The packaged app loads its renderer from `resources/dist/`. The source build
 directory is named `build-output/` on purpose so it does not collide with the
 electron-builder output.
+
+`npm run dist:stager` is the lane that ships the Rust update core: it stages the
+reusable host kit beside `DeskBuddies.exe` (never inside `resources/`), pulls the
+kit's installer hooks into the NSIS build, and fails closed when the kit is
+missing or does not match its manifest. See [docs/BUILD.md](docs/BUILD.md).
 
 ## How it is put together
 

@@ -10,3 +10,5 @@ npm-debug.log*
 .deskbuddies-vite.*.log
 .env
 build-output/
+stager-stage/
+build/installer/hook-smoke.exe
