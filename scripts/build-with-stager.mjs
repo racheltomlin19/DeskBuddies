@@ -27,7 +27,7 @@
  * Exit codes: 0 ok, 1 kit/verification failure, 2 usage error, else electron-builder's.
  */
 import { createHash } from "node:crypto";
-import { existsSync, readdirSync } from "node:fs";
+import { existsSync, readdirSync, rmSync } from "node:fs";
 import { cp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { basename, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -74,6 +74,19 @@ function fail(msg, code = 1) {
 
 function info(msg) {
   console.log("[stager] " + msg);
+}
+
+/**
+ * A kit that fails verification must not leave artifacts behind: a later
+ * electron-builder run would happily ship whatever sits in stager-stage/.
+ */
+function failRejected(msg) {
+  try {
+    rmSync(STAGE_DIR, { recursive: true, force: true });
+  } catch {
+    /* best effort - the failure below is the real signal */
+  }
+  fail(msg);
 }
 
 function sha256(buf) {
@@ -249,6 +262,10 @@ async function main() {
 
   info("kit: " + kitDir + "  (source: " + source + ")");
 
+  // Nothing survives a failed run: clear the stage dir before any check, so a
+  // rejected kit can never be picked up by a later electron-builder.
+  await rm(STAGE_DIR, { recursive: true, force: true });
+
   // --- contract check -------------------------------------------------------
   const missing = KIT_REQUIRED.filter((f) => !existsSync(join(kitDir, f)));
   if (missing.length > 0) {
@@ -256,7 +273,6 @@ async function main() {
   }
 
   // --- stage ----------------------------------------------------------------
-  await rm(STAGE_DIR, { recursive: true, force: true });
   await mkdir(STAGE_DIR, { recursive: true });
   for (const f of KIT_REQUIRED) await cp(join(kitDir, f), join(STAGE_DIR, f));
   // Anything else the kit ships (docs, extra helpers) is staged too, so the
@@ -292,7 +308,7 @@ async function main() {
         (s.expected === s.digest ? "OK" : "MISMATCH"),
     );
   }
-  if (shaFailures.length > 0) fail("manifest verification failed:\n  " + shaFailures.join("\n  "));
+  if (shaFailures.length > 0) failRejected("manifest verification failed:\n  " + shaFailures.join("\n  "));
 
   // --- gate (d): build-path / stale-identifier scan -------------------------
   info("gate (d) identifier scan:");
@@ -308,7 +324,7 @@ async function main() {
     console.log("    " + f.padEnd(22) + " " + parts.join("  "));
   }
   if (stringFailures.length > 0) {
-    fail("forbidden identifiers survived in the core:\n  " + stringFailures.join("\n  "));
+    failRejected("forbidden identifiers survived in the core:\n  " + stringFailures.join("\n  "));
   }
 
   // --- provenance -----------------------------------------------------------
