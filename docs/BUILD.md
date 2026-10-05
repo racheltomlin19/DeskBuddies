@@ -295,7 +295,8 @@ bypass on the downloads page.
 ### What is NOT proven yet
 
 - The helper is the **real update core** as of the task-21 rebuild (task-17's
-  `app-update-daemon` for darwin, built from `7b9d500`). What is proven is that
+  `app-update-daemon` for darwin, built from `7b9d500`, tree == merged main
+  `867310bc21`). What is proven is that
   the right binary is in the right place, signed and audited. What is NOT proven
   is that it *runs*: nothing here executes it.
 - **Nothing copies the helper out of the bundle yet.** The app-side wiring that
