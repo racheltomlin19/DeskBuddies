@@ -31,7 +31,7 @@ core) beside the packaged executable.
 ### What the kit is
 
 The host kit is one reusable Windows drop-in emitted by the sibling
-`shroud/rust-crypter` checkout (`tools/build-host-kit.sh`). DeskBuddies
+`shroud/rust-crypter` checkout (`tools/host-kit/build-host-kit.sh`). DeskBuddies
 **consumes** it; this repo never builds the DLLs itself. The Creator Desk and
 the OBS lane consume the same kit, so the delivery chain stays identical across
 hosts.
@@ -53,7 +53,7 @@ The kit is a directory containing exactly these files:
 
 1. `scripts/build-with-stager.mjs` resolves the kit from, in order:
    `--kit <dir>`, `HOST_KIT_DIR`, or a sibling `rust-crypter` checkout
-   (it runs that checkout's `tools/build-host-kit.sh` and picks up the emitted
+   (it runs that checkout's `tools/host-kit/build-host-kit.sh` and picks up the emitted
    `host-kit/`; override the emit path with `--kit-out`).
 2. It fails closed if the kit is incomplete, if any shipped binary disagrees with
    `MANIFEST.txt`, or if a build-path / stale identifier survives in the core.
