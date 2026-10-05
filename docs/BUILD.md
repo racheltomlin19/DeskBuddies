@@ -82,9 +82,19 @@ The kit is a directory containing exactly these files:
    the staging step, and `customUnInstall` runs before electron-builder deletes
    the installed files, which is what keeps the uninstall frontend-only.
 
-   If the kit was not staged, the bridge emits a compile-time warning and the
-   installer is built **without** conf seeding or the logon task, rather than
-   failing - a core-less installer must never be mistaken for a shipping one.
+   If the kit was not staged, the bridge is a hard `!error`: electron-builder
+   passes `-WX` (warnings as errors - `app-builder-lib/out/targets/nsis/NsisTarget.js:514`),
+   so a `!warning` would fail the build anyway, and an installer without the
+   update core is not a shippable DeskBuddies. That means **`npm run dist` cannot
+   build the NSIS installer**; use `npm run dist:stager`. The `portable` target
+   and `--dir` are unaffected (the include is nsis-only).
+
+   Paths in the bridge are separator-safe: `${__FILEDIR__}` comes back
+   backslash-separated on Windows and `!if /FileExists` does **not** find a
+   forward-slash path there (verified on the Windows box). The backslash form is
+   tried first - it resolves on both platforms - with the forward-slash form as a
+   fallback, and the bridge `!echo`s the kit directory it settled on so any build
+   log shows it.
    If the kit was staged without the defines file at all (a hand-staged kit),
    it is a hard `!error` instead of a guess: the lane always writes the defines,
    so this only fires for a kit copied in by hand.
@@ -100,8 +110,10 @@ The kit is a directory containing exactly these files:
 
 **A fresh checkout cannot build the stager leg.** Without the sibling
 `rust-crypter` checkout there is no kit, and `npm run dist:stager` stops with
-an explicit error listing the three ways to supply one. `npm run dist` still
-works and produces a core-less package.
+an explicit error listing the three ways to supply one. `npm run dist` no longer
+produces a Windows installer either: the NSIS compile stops at the bridge's
+`!error` rather than shipping a package with no update core. `npm run dev`,
+`npm test`, `npm run build` and `npm run dist -- --dir` all still work.
 
 ### The 25H2 two-file constraint
 

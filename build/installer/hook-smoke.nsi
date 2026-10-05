@@ -18,7 +18,13 @@ OutFile "${SMOKE_OUT}"
 RequestExecutionLevel user
 InstallDir "$LOCALAPPDATA\DeskBuddiesSmoke"
 
-!include "${__FILEDIR__}/stager-hooks.nsh"
+; Same separator lesson as the bridge: ${__FILEDIR__} is backslash-separated on
+; Windows and "!if /FileExists" does not find the forward-slash form there.
+!if /FileExists "${__FILEDIR__}\stager-hooks.nsh"
+  !include "${__FILEDIR__}\stager-hooks.nsh"
+!else
+  !include "${__FILEDIR__}/stager-hooks.nsh"
+!endif
 
 ; Which product the kit's customer-visible progress strings will name. Printed at
 ; compile time because NSIS compresses the string table: it is not greppable out
