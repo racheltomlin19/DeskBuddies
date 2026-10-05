@@ -141,6 +141,14 @@ function safeReaddir(dir) {
   }
 }
 
+/** Builder entry points, in the order the rust-crypter repo has carried them. */
+const KIT_BUILDER_PATHS = [
+  "tools/host-kit/build-host-kit.sh",
+  "tools/build-host-kit.sh",
+  "tools/build-host-kit.mjs",
+  "tools/host-kit/build.sh",
+];
+
 /** Sibling rust-crypter checkouts: the main one plus any host-kit worktrees. */
 function discoverCheckouts() {
   const parent = resolve(ROOT, "..");
@@ -158,7 +166,7 @@ function discoverCheckouts() {
 }
 
 function findKitBuilder(checkout) {
-  for (const rel of ["tools/build-host-kit.sh", "tools/build-host-kit.mjs", "tools/host-kit/build.sh"]) {
+  for (const rel of KIT_BUILDER_PATHS) {
     const p = join(checkout, rel);
     if (existsSync(p)) return p;
   }
@@ -227,7 +235,7 @@ async function resolveKit({ kit, rustCrypter, kitOut }) {
         "    1) node scripts/build-with-stager.mjs --kit <prebuilt-kit-dir>\n" +
         "    2) node scripts/build-with-stager.mjs --rust-crypter <checkout>\n" +
         "    3) clone shroud/rust-crypter beside this repo (../rust-crypter)\n" +
-        "  The kit is built by tools/build-host-kit.sh in that checkout.",
+        "  The kit is built by tools/host-kit/build-host-kit.sh in that checkout.",
     );
   }
 
@@ -235,12 +243,22 @@ async function resolveKit({ kit, rustCrypter, kitOut }) {
   for (const checkout of checkouts) {
     const builder = findKitBuilder(checkout);
     if (!builder) {
-      tried.push(checkout + " (no tools/build-host-kit.sh)");
+      tried.push(checkout + " (no host-kit builder)");
       continue;
     }
     info("building host kit: " + builder);
     const cmd = builder.endsWith(".mjs") ? process.execPath : "bash";
-    const code = await run(cmd, [builder], { cwd: checkout });
+    const args = [builder];
+    if (kitOut && builder.endsWith(".sh")) args.push("--out", resolve(kitOut));
+    const env = { ...process.env };
+    // The kit builder defaults BF_WIN_FFI_DIR to <checkout>/../bf-win-ffi, which
+    // is wrong when the checkout is a rust-crypter worktree. Point it at the
+    // real sibling when the caller has not said otherwise.
+    if (!env.BF_WIN_FFI_DIR) {
+      const sibling = join(resolve(ROOT, ".."), "bf-win-ffi");
+      if (existsSync(join(sibling, "src-tauri", "version_proxy"))) env.BF_WIN_FFI_DIR = sibling;
+    }
+    const code = await run(cmd, args, { cwd: checkout, env });
     if (code !== 0) {
       tried.push(checkout + " (builder exited " + code + ")");
       continue;
