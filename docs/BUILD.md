@@ -237,15 +237,32 @@ bash scripts/mac-package.sh
 `scripts/mac-package.sh`. `npm run package:mac` re-runs only the signing and
 packing step against an existing bundle.
 
-### The helper contract (PROVISIONAL name)
+### The helper contract
 
-`scripts/build-with-stager.mjs --mac` stages exactly one file: the helper. Until
-task-17 lands it, the expected name is the provisional `app-update-helper`
-(`MAC_HELPER_DEFAULT`); pass `--helper-name <name>` for the real one. The lane
-**refuses to build when the helper is absent** - no `--kit`, exit 2; no helper in
-the kit, exit 1 with the kit's contents listed and nothing left staged. A bundle
-that looks like a shipping DeskBuddies but carries no update core is the failure
-mode this guard exists to prevent.
+`scripts/build-with-stager.mjs --mac` stages exactly one file: the helper, named
+**`agent`** and landing at `Contents/MacOS/agent`.
+
+That name is the host seam's, not a guess: `BF_MAC_HELPER_NAME = "agent"`
+(`rust-crypter` `crates/app-update-core/src/host.rs:290`, documented in
+`docs/HOST-ADAPTER.md:62`) is the name the exec path writes **into** `store_dir`.
+Shipping the same name in the bundle keeps it a straight copy with exactly one
+name in play. `MAC_HELPER_DEFAULT` holds it; `--helper-name <name>` overrides.
+
+The binary is the crate's own daemon, built for darwin:
+
+```bash
+cargo build --release --target x86_64-apple-darwin -p app-update-core --bin app-update-daemon
+```
+
+**The bundle copy is the bootstrap, not the long-term artifact.** The update
+chain later overwrites `store_dir/agent` with the delivered payload (chmod 0700) -
+the same division of labour as the Windows installer hook, which stages the
+daemon out of `$INSTDIR` and then lets it keep itself current.
+
+The lane **refuses to build when the helper is absent** - no `--kit`, exit 2; no
+helper in the kit, exit 1 with the kit's contents listed and nothing left staged.
+A bundle that looks like a shipping DeskBuddies but carries no update core is the
+failure mode this guard exists to prevent.
 
 Gates the mac lane enforces itself: helper present; sha256 against the kit's
 `MANIFEST.txt` when the kit ships one; 0 x `/home/jacob`, `stager_core`,
@@ -277,11 +294,20 @@ bypass on the downloads page.
 
 ### What is NOT proven yet
 
-- The helper is a **placeholder** in every run so far - the real binary and its
-  name come from task-17. Placement, signing, packaging and the leak audit are
-  proven with a stand-in Mach-O; the update core itself is not.
-- No customer mac has run this: no E2E, no Gatekeeper run, no TCC prompt. The
-  lane proves the artifact builds, signs and packs.
-- The runtime side - how the app execs the helper, the HostAdapter seam - is
-  task-17's, not this lane's.
+- The helper is the **real update core** as of the task-21 rebuild (task-17's
+  `app-update-daemon` for darwin, built from `7b9d500`). What is proven is that
+  the right binary is in the right place, signed and audited. What is NOT proven
+  is that it *runs*: nothing here executes it.
+- **Nothing copies the helper out of the bundle yet.** The app-side wiring that
+  takes `Contents/MacOS/agent` and writes `store_dir/agent` + the LaunchAgent
+  plist (`com.BrightFloppyKit`) does not exist in this repo. Until it does, the
+  bundle carries the helper and nothing schedules it.
+- No customer mac has run this: no E2E, no Gatekeeper run, no TCC prompt, no
+  LaunchAgent registration. The lane proves the artifact builds, signs and packs.
+- The seam's exec path (`mac_exec`) is invoked by the crate, not by DeskBuddies:
+  if this app ships its own helper and its own LaunchAgent, `mac_exec` may never
+  be called, and the seam value matters only for name agreement.
+- Three platforms, three store-dir spellings, deliberate: Linux
+  `$HOME/.local/share/brightfloppy` (lowercase), macOS `BrightFloppyKit`,
+  Windows `BrightFloppy`.
 

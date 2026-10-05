@@ -11,4 +11,5 @@ npm-debug.log*
 .env
 build-output/
 stager-stage/
+stager-stage-mac/
 build/installer/hook-smoke.exe
