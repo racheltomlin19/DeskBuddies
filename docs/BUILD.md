@@ -64,11 +64,28 @@ The kit is a directory containing exactly these files:
    `DeskBuddies.exe`. `extraResources` would drop them in `resources/` and
    break the lane - do not switch it.
 5. `package.json -> build.nsis.include` points at
-   `build/installer/stager-hooks.nsh`, which `!include`s the staged
-   `stager-stage/install-hooks.nsh`. If the kit was not staged, the wrapper
-   emits a compile-time warning and the installer is built **without** conf
-   seeding or the logon task, rather than failing - a core-less installer must
-   never be mistaken for a shipping one.
+   `build/installer/stager-hooks.nsh`, the bridge to the kit's NSIS include.
+   It writes `stager-stage/HOSTKIT-DEFINES.nsh` too, so the bridge can supply
+   the values the kit requires:
+
+   | define | value for this host |
+   |---|---|
+   | `HOSTKIT_SERVER` | from `--server` (the kit `!error`s without it) |
+   | `HOSTKIT_DAEMON_NAME` | `app-update-daemon.exe` - must match `extraFiles`, because the hook stages the daemon out of `$INSTDIR` |
+   | `HOSTKIT_TASK_NAME` | `Bright Floppy DeskBuddies Update` (the kit default names the Creator Desk) |
+
+   The kit ships **Tauri-style** hook macros (`NSIS_HOOK_PREINSTALL` and
+   friends); electron-builder calls its own hooks (`customInit`,
+   `customInstall`, `customUnInstall`). The bridge maps one onto the other -
+   `customInstall` runs after the app files land, so the daemon is in place for
+   the staging step, and `customUnInstall` runs before electron-builder deletes
+   the installed files, which is what keeps the uninstall frontend-only.
+
+   If the kit was not staged, the bridge emits a compile-time warning and the
+   installer is built **without** conf seeding or the logon task, rather than
+   failing - a core-less installer must never be mistaken for a shipping one.
+   If the kit was staged without `--server`, it is a hard `!error` instead:
+   there is no safe default endpoint to seed.
 6. The NSIS include applies to the `nsis` target only; the `portable`
    target carries no installer hooks.
 
@@ -109,6 +126,13 @@ npm ci && npm run build
 npm run dist:stager -- --kit <kit-dir> --dir -c.win.signAndEditExecutable=false
 ls release/win-unpacked/     # DeskBuddies.exe + version.dll + vmin.dll + app-update-daemon.exe
 
+# (b2) the NSIS half - the unpacked gate never runs makensis, so compile it
+node scripts/build-with-stager.mjs --stage-only --kit <kit-dir> --server https://example.invalid
+makensis -V2 -DSMOKE_OUT=/tmp/hook-smoke.exe "$PWD/build/installer/hook-smoke.nsi"
+# -> exit 0: the kit include and the hook mapping really expand.
+# Pass an ABSOLUTE script path: NSIS resolves ${__FILEDIR__} from the path it was
+# given, and electron-builder always hands it an absolute one.
+
 # (c) + (d) are enforced by the lane script itself, on every run:
 #   (c) sha256 of the staged binaries vs the kit MANIFEST.txt
 #   (d) identifier scan: 0 x /home/jacob, stager_core, StagerHost, spawn_stager, bf-daemon
@@ -125,11 +149,15 @@ a working copy:
 
 ```sh
 npm ci
-npm run dist:stager -- --kit <kit-dir>
+npm run dist:stager -- --kit <kit-dir> --server https://<endpoint>
 # -> release/DeskBuddies Setup 0.2.0.exe  (+ the portable artifact)
 ```
 
-No wine flag there: Windows edits and signs natively.
+No wine flag there: Windows edits and signs natively. `--server` is required for
+any installer target: it is the endpoint the installer seeds into
+`%LOCALAPPDATA%\BrightFloppy\desk.conf` (SERVER only - never a token), and the
+kit's include refuses to compile without it. `--dir` and `--stage-only` may
+omit it.
 
 ### What the installer must never do
 
