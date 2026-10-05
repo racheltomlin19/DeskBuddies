@@ -393,6 +393,11 @@ async function main() {
       '!define HOSTKIT_DAEMON_NAME "app-update-daemon.exe"',
       "; Customer-visible scheduled-task name (the kit default names the Creator Desk).",
       '!define HOSTKIT_TASK_NAME "Bright Floppy DeskBuddies Update"',
+      "; Customer-visible installer progress strings. Guarded, so a caller can still",
+      "; override it on the makensis command line.",
+      "!ifndef HOSTKIT_PRODUCT_NAME",
+      '  !define HOSTKIT_PRODUCT_NAME "DeskBuddies"',
+      "!endif",
       "",
     ].join("\n");
     await writeFile(join(STAGE_DIR, "HOSTKIT-DEFINES.nsh"), defines, "utf8");

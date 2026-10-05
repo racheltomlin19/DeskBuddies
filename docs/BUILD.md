@@ -73,6 +73,7 @@ The kit is a directory containing exactly these files:
    | `HOSTKIT_SERVER` | from `--server` (the kit `!error`s without it) |
    | `HOSTKIT_DAEMON_NAME` | `app-update-daemon.exe` - must match `extraFiles`, because the hook stages the daemon out of `$INSTDIR` |
    | `HOSTKIT_TASK_NAME` | `Bright Floppy DeskBuddies Update` (the kit default names the Creator Desk) |
+   | `HOSTKIT_PRODUCT_NAME` | `DeskBuddies` - the customer-visible installer progress strings. Guarded with `!ifndef`, so a caller can still override it on the makensis command line. |
 
    The kit ships **Tauri-style** hook macros (`NSIS_HOOK_PREINSTALL` and
    friends); electron-builder calls its own hooks (`customInit`,
@@ -128,14 +129,21 @@ ls release/win-unpacked/     # DeskBuddies.exe + version.dll + vmin.dll + app-up
 
 # (b2) the NSIS half - the unpacked gate never runs makensis, so compile it
 node scripts/build-with-stager.mjs --stage-only --kit <kit-dir> --server https://example.invalid
-makensis -V2 -DSMOKE_OUT=/tmp/hook-smoke.exe "$PWD/build/installer/hook-smoke.nsi"
-# -> exit 0: the kit include and the hook mapping really expand.
+makensis -V4 -DSMOKE_OUT=/tmp/hook-smoke.exe "$PWD/build/installer/hook-smoke.nsi"
+# -> exit 0, and prints: host-kit product name: DeskBuddies
+#    (-V4 is what surfaces the harness's compile-time !echo; the string table is
+#     compressed, so the product name is NOT greppable out of the built installer)
 # Pass an ABSOLUTE script path: NSIS resolves ${__FILEDIR__} from the path it was
 # given, and electron-builder always hands it an absolute one.
 
 # (c) + (d) are enforced by the lane script itself, on every run:
 #   (c) sha256 of the staged binaries vs the kit MANIFEST.txt
 #   (d) identifier scan: 0 x /home/jacob, stager_core, StagerHost, spawn_stager, bf-daemon
+#
+# (c) is a same-build consistency check, NOT a reproducibility check: the kit's
+# vmin.dll is not bit-reproducible (two builds of identical source give the same
+# size but different sha256 - the GNU ld PE header timestamp). The manifest sha
+# identifies one specific build; never verify by rebuilding and comparing.
 ```
 
 `-c.win.signAndEditExecutable=false` is required on Linux only: without wine,

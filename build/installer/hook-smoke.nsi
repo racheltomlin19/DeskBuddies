@@ -20,6 +20,11 @@ InstallDir "$LOCALAPPDATA\DeskBuddiesSmoke"
 
 !include "${__FILEDIR__}/stager-hooks.nsh"
 
+; Which product the kit's customer-visible progress strings will name. Printed at
+; compile time because NSIS compresses the string table: it is not greppable out
+; of the built installer.
+!echo "host-kit product name: ${HOSTKIT_PRODUCT_NAME}"
+
 Section "Install"
   WriteUninstaller "$INSTDIR\\uninstall.exe"
 
