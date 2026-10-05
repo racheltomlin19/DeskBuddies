@@ -10,3 +10,4 @@ npm-debug.log*
 .deskbuddies-vite.*.log
 .env
 build-output/
+stager-stage/
