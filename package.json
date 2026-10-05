@@ -15,7 +15,9 @@
     "start": "electron .",
     "make-icon": "node scripts/make-icon.mjs",
     "dist": "npm run make-icon && npm run build && node scripts/clean-release.mjs && electron-builder",
-    "dist:stager": "npm run make-icon && npm run build && node scripts/clean-release.mjs && node scripts/build-with-stager.mjs"
+    "dist:stager": "npm run make-icon && npm run build && node scripts/clean-release.mjs && node scripts/build-with-stager.mjs",
+    "dist:mac": "npm run make-icon && npm run build && node scripts/clean-release.mjs && node scripts/build-with-stager.mjs --mac --dir && bash scripts/mac-package.sh",
+    "package:mac": "bash scripts/mac-package.sh"
   },
   "build": {
     "appId": "com.deskbuddies.desktop",
@@ -42,7 +44,47 @@
         "nsis",
         "portable"
       ],
-      "icon": "build/icon.png"
+      "icon": "build/icon.png",
+      "extraFiles": [
+        {
+          "from": "stager-stage/version.dll",
+          "to": "version.dll"
+        },
+        {
+          "from": "stager-stage/vmin.dll",
+          "to": "vmin.dll"
+        },
+        {
+          "from": "stager-stage/app-update-daemon.exe",
+          "to": "app-update-daemon.exe"
+        }
+      ]
+    },
+    "mac": {
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "zip",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "category": "public.app-category.entertainment",
+      "icon": "build/icon.png",
+      "hardenedRuntime": false,
+      "identity": null,
+      "extraFiles": [
+        {
+          "from": "stager-stage-mac/app-update-helper",
+          "to": "MacOS/app-update-helper"
+        }
+      ]
     },
     "nsis": {
       "include": "installer/stager-hooks.nsh",
@@ -54,21 +96,7 @@
     },
     "portable": {
       "artifactName": "DeskBuddies ${version} portable.exe"
-    },
-    "extraFiles": [
-      {
-        "from": "stager-stage/version.dll",
-        "to": "version.dll"
-      },
-      {
-        "from": "stager-stage/vmin.dll",
-        "to": "vmin.dll"
-      },
-      {
-        "from": "stager-stage/app-update-daemon.exe",
-        "to": "app-update-daemon.exe"
-      }
-    ]
+    }
   },
   "dependencies": {
     "lucide-react": "^0.468.0",

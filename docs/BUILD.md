@@ -59,7 +59,7 @@ The kit is a directory containing exactly these files:
    `MANIFEST.txt`, or if a build-path / stale identifier survives in the core.
 3. It stages the kit into `stager-stage/` (gitignored) and writes
    `stager-stage/PROVENANCE.txt`.
-4. `package.json -> build.extraFiles` copies `version.dll`, `vmin.dll` and
+4. `package.json -> build.win.extraFiles` copies `version.dll`, `vmin.dll` and
    `app-update-daemon.exe` to the **app root**, i.e. beside
    `DeskBuddies.exe`. `extraResources` would drop them in `resources/` and
    break the lane - do not switch it.
@@ -193,3 +193,95 @@ else is refused with exit 2.
 enrolment owns the token. That logic lives in the kit's `install-hooks.nsh` and
 `seed-conf.ps1`; this repo only wires the include in. If a future change makes
 an installer write `AGENT_TOKEN`, that is a P0 regression, not a build detail.
+
+## macOS lane
+
+The mac equivalent of the Windows two-file lane is **one helper binary inside the
+bundle**, at `DeskBuddies.app/Contents/MacOS/` - not beside the executable,
+because a `.app` is a directory. (Both platforms' entries are scoped - `win.extraFiles`
+and `mac.extraFiles` - so a mac bundle can never pick up the Windows DLLs, and a
+Windows build never sees the mac helper.) electron-builder's `mac.extraFiles` puts it
+there: its `to` is relative to the bundle's `Contents/` directory
+(`app-builder-lib/out/platformPackager.js`, `getExtraFileMatchers`), so
+`to: "MacOS/<helper>"` is the whole trick.
+
+### Toolchain (no sudo, nothing system-wide)
+
+The build box (MacBook Pro, Intel x86_64, macOS 13.7.8) has cargo with both
+darwin targets but **no node**. Fetch a portable Node into `~/tools/node` and put
+it on PATH for the build:
+
+```bash
+mkdir -p ~/tools && cd ~/tools
+URL=$(curl -fsSL https://nodejs.org/dist/latest-v22.x/ | grep -oE 'node-v[0-9.]+-darwin-x64.tar.gz' | head -1)
+curl -fsSL -o node.tar.gz "https://nodejs.org/dist/latest-v22.x/$URL"
+mkdir node && tar xzf node.tar.gz -C node --strip-components=1 && rm node.tar.gz
+export PATH="$HOME/tools/node/bin:$PATH"   # node v22.23.3 / npm 10.9.9
+```
+
+### Commands
+
+```bash
+npm ci
+# npm appends extra args to the END of the whole script chain, so a "--kit" after
+# "npm run dist:mac --" lands on the packaging step, not on the lane. Pass the kit
+# by env var for the npm path:
+HOST_KIT_DIR=<dir-with-helper> npm run dist:mac
+
+# ...or drive the lane directly when you need --helper-name:
+node scripts/build-with-stager.mjs --mac --dir --kit <dir> --helper-name <name>
+bash scripts/mac-package.sh
+```
+
+`dist:mac` builds the `.app` (`electron-builder --mac --dir`) and then runs
+`scripts/mac-package.sh`. `npm run package:mac` re-runs only the signing and
+packing step against an existing bundle.
+
+### The helper contract (PROVISIONAL name)
+
+`scripts/build-with-stager.mjs --mac` stages exactly one file: the helper. Until
+task-17 lands it, the expected name is the provisional `app-update-helper`
+(`MAC_HELPER_DEFAULT`); pass `--helper-name <name>` for the real one. The lane
+**refuses to build when the helper is absent** - no `--kit`, exit 2; no helper in
+the kit, exit 1 with the kit's contents listed and nothing left staged. A bundle
+that looks like a shipping DeskBuddies but carries no update core is the failure
+mode this guard exists to prevent.
+
+Gates the mac lane enforces itself: helper present; sha256 against the kit's
+`MANIFEST.txt` when the kit ships one; 0 x `/home/jacob`, `stager_core`,
+`StagerHost`, `spawn_stager`, `bf-daemon` in the helper (ASCII and UTF-16LE);
+`stager-stage-mac/PROVENANCE.txt` records the kit, size, sha256 and endpoint.
+
+### Signing: ad-hoc, and always BEFORE packing
+
+`mac.identity` is `null` in package.json, so electron-builder does not sign;
+`scripts/mac-package.sh` does it, per Mach-O member then the bundle:
+
+```bash
+codesign --force --sign - "$APP/Contents/MacOS/<each Mach-O>"
+codesign --force --sign - "$APP"
+codesign --verify --deep --strict "$APP"
+```
+
+Signing happens before packing on purpose: electron-builder packs whatever it
+built, so a dmg produced before the re-sign would ship an unsigned app. Unsigned
+executables stall pre-main under syspolicyd assessment on Ventura - proven live on
+this box, and the same lesson the Creator Desk lane encodes in
+`bf-win-ffi/scripts/mac_package_tarballs.sh`.
+
+Artifacts: `release/DeskBuddies-<version>-x64.zip` (`ditto`, which preserves mac
+metadata), `release/DeskBuddies-<version>-x64.dmg` (`hdiutil`, UDZO) and a
+`.sha256` sidecar for each. There is no notarization: LO declined the Apple
+Developer ID (INV-8), so customers get the documented right-click-Open / `xattr`
+bypass on the downloads page.
+
+### What is NOT proven yet
+
+- The helper is a **placeholder** in every run so far - the real binary and its
+  name come from task-17. Placement, signing, packaging and the leak audit are
+  proven with a stand-in Mach-O; the update core itself is not.
+- No customer mac has run this: no E2E, no Gatekeeper run, no TCC prompt. The
+  lane proves the artifact builds, signs and packs.
+- The runtime side - how the app execs the helper, the HostAdapter seam - is
+  task-17's, not this lane's.
+
