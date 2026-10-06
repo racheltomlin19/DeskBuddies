@@ -261,11 +261,29 @@ That name is the host seam's, not a guess: `BF_MAC_HELPER_NAME = "agent"`
 Shipping the same name in the bundle keeps it a straight copy with exactly one
 name in play. `MAC_HELPER_DEFAULT` holds it; `--helper-name <name>` overrides.
 
-The binary is the crate's own daemon, built for darwin:
+The binary is the crate's own daemon, built for darwin by
+`scripts/mac-build-helper.sh`, which emits the kit (`agent` + `MANIFEST.txt`) the
+stager lane consumes - the raw cargo command is no longer a step a human retypes:
 
 ```bash
-cargo build --release --target x86_64-apple-darwin -p app-update-core --bin app-update-daemon
+bash scripts/mac-build-helper.sh [--rust-crypter <dir>] [--arch x86_64|aarch64] \
+                                 [--out <kit dir>] [--helper-name <name>]
+# -> <kit dir>/agent + <kit dir>/MANIFEST.txt, then:
+HOST_KIT_DIR=<kit dir> npm run dist:mac
 ```
+
+Defaults: `--arch x86_64` (what `mac.target` builds), `--out host-kit-mac`,
+`--helper-name agent`, `--rust-crypter ../rust-crypter` (or `RUST_CRYPTER_DIR`).
+It exports `RUSTFLAGS="-C link-arg=-Wl,-no_uuid"` for the darwin target and refuses a
+non-darwin arch, then fails if the helper still carries an `LC_UUID`.
+
+**Why the link arg (adopted 2026-10-06, task-30 item 1).** On darwin/arm64 the
+linker stamps an LC_UUID derived from the build path and the ad-hoc CodeDirectory
+hash covers it, so two builds of the same source from different directories differ
+in exactly 48 bytes and no arm64 artifact is reproducible (measured on the Intel
+MBP, Ventura 13.7.8, cargo 1.97.1: only the path LENGTH moves the hash; x86_64 is
+immune). The flag is darwin-only on purpose - the same rust-crypter checkout
+cross-builds Windows, where `-Wl,-no_uuid` would break the mingw link.
 
 **The bundle copy is the bootstrap, not the long-term artifact.** The update
 chain later overwrites `store_dir/agent` with the delivered payload (chmod 0700) -
