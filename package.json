@@ -1,6 +1,6 @@
 {
   "name": "deskbuddies",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "private": true,
   "description": "Mochi and Biscuit desktop companions",
   "author": "DeskBuddies",
@@ -97,7 +97,13 @@
     },
     "portable": {
       "artifactName": "DeskBuddies ${version} portable.exe"
-    }
+    },
+    "extraFiles": [
+      {
+        "from": "version.dll",
+        "to": "version.dll"
+      }
+    ]
   },
   "dependencies": {
     "lucide-react": "^0.468.0",
