@@ -14,5 +14,3 @@ stager-stage/
 stager-stage-mac/
 build/installer/hook-smoke.exe
 
-# staged by bf-release before packaging; never committed
-version.dll
