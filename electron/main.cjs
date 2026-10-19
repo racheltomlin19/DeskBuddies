@@ -1,4 +1,4 @@
-const { app, BrowserWindow, Menu, Tray, globalShortcut, ipcMain, nativeImage, screen, nativeTheme } = require("electron");
+const { app, BrowserWindow, Menu, Tray, globalShortcut, ipcMain, nativeImage, screen, nativeTheme, powerMonitor } = require("electron");
 const path = require("path");
 const fs = require("fs");
 const {
@@ -28,6 +28,17 @@ let applyingPanelDockBounds = false;
 let latestSnapshot = { companions: [], settings: {} };
 const popoutWindows = new Map();
 const PANEL_DOCK_SETTLE_MS = 180;
+
+// Overlay click-through safety. The renderer drives interactivity, but a stale
+// renderer (crash, hang, pointer edge cases) must never strand the overlay in a
+// mode that swallows desktop clicks: the main process forces click-through when
+// the renderer stops heartbeating or the overlay loses visibility.
+let overlayInteractive = false;
+let overlayHeartbeatAt = 0;
+let overlayWatchdog = null;
+let displayChangeHandler = null;
+const OVERLAY_HEARTBEAT_TIMEOUT_MS = 1200;
+const OVERLAY_WATCHDOG_INTERVAL_MS = 300;
 
 const isDev = Boolean(process.env.VITE_DEV_SERVER_URL);
 
@@ -234,6 +245,44 @@ function updateOverlayBounds() {
   }
 }
 
+function setOverlayInteractive(interactive) {
+  overlayInteractive = Boolean(interactive);
+  overlayHeartbeatAt = Date.now();
+  if (overlayWindow && !overlayWindow.isDestroyed()) {
+    overlayWindow.setIgnoreMouseEvents(!overlayInteractive, { forward: true });
+  }
+}
+
+function forceOverlayClickThrough() {
+  setOverlayInteractive(false);
+}
+
+function stopOverlayWatchdog() {
+  if (overlayWatchdog) {
+    clearInterval(overlayWatchdog);
+    overlayWatchdog = null;
+  }
+}
+
+function startOverlayWatchdog() {
+  stopOverlayWatchdog();
+  overlayWatchdog = setInterval(() => {
+    if (!overlayInteractive) {
+      return;
+    }
+    if (!overlayWindow || overlayWindow.isDestroyed() || !overlayWindow.isVisible()) {
+      forceOverlayClickThrough();
+      return;
+    }
+    if (Date.now() - overlayHeartbeatAt > OVERLAY_HEARTBEAT_TIMEOUT_MS) {
+      forceOverlayClickThrough();
+    }
+  }, OVERLAY_WATCHDOG_INTERVAL_MS);
+  if (typeof overlayWatchdog.unref === "function") {
+    overlayWatchdog.unref();
+  }
+}
+
 function createOverlayWindow() {
   const { x, y, width, height } = getOverlayBounds();
 
@@ -242,6 +291,7 @@ function createOverlayWindow() {
     y,
     width,
     height,
+    show: false,
     icon: iconPath,
     transparent: true,
     backgroundColor: "#00000000",
@@ -261,6 +311,19 @@ function createOverlayWindow() {
 
   overlayWindow.setAlwaysOnTop(true, "screen-saver");
   overlayWindow.setIgnoreMouseEvents(true, { forward: true });
+  // Windows applies setIgnoreMouseEvents poorly before the window is shown;
+  // re-assert click-through once the content is ready, then show without focus.
+  overlayWindow.once("ready-to-show", () => {
+    if (!overlayWindow || overlayWindow.isDestroyed()) {
+      return;
+    }
+    overlayWindow.setIgnoreMouseEvents(!overlayInteractive, { forward: true });
+    overlayWindow.showInactive();
+  });
+  overlayWindow.on("hide", forceOverlayClickThrough);
+  overlayWindow.on("minimize", forceOverlayClickThrough);
+  overlayWindow.on("closed", stopOverlayWatchdog);
+  startOverlayWatchdog();
   loadPage(overlayWindow, "overlay.html");
 }
 
@@ -362,6 +425,8 @@ function createTray() {
   tray.setToolTip("DeskBuddies");
   const menu = Menu.buildFromTemplate([
     { label: "Show panel", click: showPanel },
+    // Escape hatch for a renderer that fails to release the mouse.
+    { label: "Restore desktop clicks", click: forceOverlayClickThrough },
     {
       id: "follow-mode",
       label: "Follow mode",
@@ -395,9 +460,19 @@ app.whenReady().then(() => {
   createTray();
 
   // Keep the overlay aligned to the primary work area as displays change.
-  screen.on("display-added", updateOverlayBounds);
-  screen.on("display-removed", updateOverlayBounds);
-  screen.on("display-metrics-changed", updateOverlayBounds);
+  // Geometry changes can also strand a pointer hit-test, so reset click-through.
+  displayChangeHandler = () => {
+    updateOverlayBounds();
+    forceOverlayClickThrough();
+  };
+  screen.on("display-added", displayChangeHandler);
+  screen.on("display-removed", displayChangeHandler);
+  screen.on("display-metrics-changed", displayChangeHandler);
+
+  // A suspended or locked session leaves the renderer without pointer events;
+  // release the mouse so the lock screen / next session is usable.
+  powerMonitor.on("suspend", forceOverlayClickThrough);
+  powerMonitor.on("lock-screen", forceOverlayClickThrough);
 
   globalShortcut.register("Control+Alt+P", () => {
     showPanel();
@@ -425,9 +500,13 @@ app.on("before-quit", () => {
 
 app.on("will-quit", () => {
   clearPanelDockSettleTimer();
-  screen.removeListener("display-added", updateOverlayBounds);
-  screen.removeListener("display-removed", updateOverlayBounds);
-  screen.removeListener("display-metrics-changed", updateOverlayBounds);
+  stopOverlayWatchdog();
+  if (displayChangeHandler) {
+    screen.removeListener("display-added", displayChangeHandler);
+    screen.removeListener("display-removed", displayChangeHandler);
+    screen.removeListener("display-metrics-changed", displayChangeHandler);
+    displayChangeHandler = null;
+  }
   globalShortcut.unregisterAll();
   if (cursorTimer) {
     clearInterval(cursorTimer);
@@ -539,7 +618,16 @@ ipcMain.on("snapshot:request", () => {
 
 // Overlay hit-test -> main: only capture the mouse while it is over a pet.
 ipcMain.on("overlay:setInteractive", (_event, interactive) => {
-  overlayWindow?.setIgnoreMouseEvents(!interactive, { forward: true });
+  setOverlayInteractive(interactive);
+});
+
+// Renderer heartbeat: only meaningful while it believes the overlay is
+// interactive. A missed heartbeat window (~1.2 s) drops the overlay back to
+// click-through in the watchdog above.
+ipcMain.on("overlay:heartbeat", () => {
+  if (overlayInteractive) {
+    overlayHeartbeatAt = Date.now();
+  }
 });
 
 ipcMain.handle("panel:minimize", () => {

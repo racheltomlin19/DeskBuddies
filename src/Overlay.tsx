@@ -37,7 +37,11 @@ export function Overlay() {
   const requestOverlayInteraction = useCallback((overPet: boolean, dragging: boolean) => {
     if (interactionTimeoutRef.current !== null) window.clearTimeout(interactionTimeoutRef.current);
     const transition = getOverlayInteractionTransition({ interactive: interactiveRef.current, overPet, dragging });
-    if (transition.delay === 0) { interactiveRef.current = transition.interactive; window.deskBuddies?.setOverlayInteractive(transition.interactive); }
+    if (transition.delay === 0) {
+      interactiveRef.current = transition.interactive;
+      window.deskBuddies?.setOverlayInteractive(transition.interactive);
+      if (transition.interactive) window.deskBuddies?.setOverlayInteractiveHeartbeat?.();
+    }
     else interactionTimeoutRef.current = window.setTimeout(() => { interactiveRef.current = false; window.deskBuddies?.setOverlayInteractive(false); }, transition.delay);
   }, []);
 
@@ -200,12 +204,43 @@ export function Overlay() {
     if (!point) {
       return;
     }
+    if (point.x < 0 || point.y < 0 || point.x > window.innerWidth || point.y > window.innerHeight) {
+      forceClickThrough();
+      return;
+    }
     const padding = interactiveRef.current ? OVERLAY_EXIT_HIT_PADDING : OVERLAY_ENTRY_HIT_PADDING;
     const over = findPetAtPoint(point, boxes, padding) !== null;
     if (over !== interactiveRef.current) {
       requestOverlayInteraction(over, false);
     }
-  }, [boxes, requestOverlayInteraction]);
+  }, [boxes, requestOverlayInteraction, forceClickThrough]);
+
+  // Safety net for a stranded interactive overlay: keep the main process alive
+  // while we hold the mouse, and drop the mode if the pointer is gone, out of
+  // bounds, or no longer over a pet. The main process has its own watchdog for
+  // the case where this renderer stops running entirely.
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      if (!interactiveRef.current) {
+        return;
+      }
+      window.deskBuddies?.setOverlayInteractiveHeartbeat?.();
+      const point = lastPointerRef.current;
+      if (!point) {
+        forceClickThrough();
+        return;
+      }
+      if (point.x < 0 || point.y < 0 || point.x > window.innerWidth || point.y > window.innerHeight) {
+        forceClickThrough();
+        return;
+      }
+      const over = findPetAtPoint(point, boxesRef.current, OVERLAY_EXIT_HIT_PADDING) !== null;
+      if (!over) {
+        forceClickThrough();
+      }
+    }, 250);
+    return () => window.clearInterval(timer);
+  }, [forceClickThrough]);
 
   useEffect(() => {
     const onMove = (event: globalThis.PointerEvent) => {
@@ -235,6 +270,11 @@ export function Overlay() {
         dragPet(event.clientX, event.clientY);
         return;
       }
+      if (event.clientX < 0 || event.clientY < 0 || event.clientX > window.innerWidth || event.clientY > window.innerHeight) {
+        lastPointerRef.current = null;
+        forceClickThrough();
+        return;
+      }
       lastPointerRef.current = { x: event.clientX, y: event.clientY };
       suppressStaleHitRef.current = false;
       // Hysteresis: a wider hit box while already hovering keeps the window from
@@ -247,7 +287,7 @@ export function Overlay() {
     };
     window.addEventListener("pointermove", onMove);
     return () => window.removeEventListener("pointermove", onMove);
-  }, [dragPet, requestOverlayInteraction]);
+  }, [dragPet, requestOverlayInteraction, forceClickThrough]);
 
   useEffect(() => {
     const terminateUp = (event: globalThis.PointerEvent) => {
@@ -266,14 +306,25 @@ export function Overlay() {
         if (!terminationRef.current?.terminate("page-hide")) forceClickThrough();
       }
     };
+    // The pointer left the overlay entirely (multi-monitor edge, window moved,
+    // or the cursor jumped without an intermediate pointermove).
+    const terminateLeave = () => {
+      if (draggingRef.current) {
+        return;
+      }
+      lastPointerRef.current = null;
+      forceClickThrough();
+    };
     window.addEventListener("pointerup", terminateUp);
     window.addEventListener("pointercancel", terminateCancel);
     window.addEventListener("blur", terminateBlur);
+    document.addEventListener("pointerleave", terminateLeave);
     document.addEventListener("visibilitychange", terminateHidden);
     return () => {
       window.removeEventListener("pointerup", terminateUp);
       window.removeEventListener("pointercancel", terminateCancel);
       window.removeEventListener("blur", terminateBlur);
+      document.removeEventListener("pointerleave", terminateLeave);
       document.removeEventListener("visibilitychange", terminateHidden);
       terminationRef.current?.dispose();
       forceClickThrough();

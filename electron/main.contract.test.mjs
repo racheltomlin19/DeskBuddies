@@ -13,10 +13,21 @@ test("panel minimize invokes BrowserWindow minimize independently of hide", () =
 });
 
 test("overlay follows all primary display metric changes and listeners are removed", () => {
-  expect(main).toMatch(/screen\.on\("display-metrics-changed",\s*updateOverlayBounds\)/);
-  expect(main).toMatch(/screen\.removeListener\("display-added",\s*updateOverlayBounds\)/);
-  expect(main).toMatch(/screen\.removeListener\("display-removed",\s*updateOverlayBounds\)/);
-  expect(main).toMatch(/screen\.removeListener\("display-metrics-changed",\s*updateOverlayBounds\)/);
+  expect(main).toMatch(/screen\.on\("display-added",\s*displayChangeHandler\)/);
+  expect(main).toMatch(/screen\.on\("display-removed",\s*displayChangeHandler\)/);
+  expect(main).toMatch(/screen\.on\("display-metrics-changed",\s*displayChangeHandler\)/);
+  expect(main).toMatch(/screen\.removeListener\("display-added",\s*displayChangeHandler\)/);
+  expect(main).toMatch(/screen\.removeListener\("display-removed",\s*displayChangeHandler\)/);
+  expect(main).toMatch(/screen\.removeListener\("display-metrics-changed",\s*displayChangeHandler\)/);
+});
+
+test("overlay click-through has a main-process watchdog and a manual escape hatch", () => {
+  expect(main).toMatch(/OVERLAY_HEARTBEAT_TIMEOUT_MS = 1200/);
+  expect(main).toMatch(/startOverlayWatchdog\(\)/);
+  expect(main).toMatch(/ipcMain\.on\("overlay:heartbeat"/);
+  expect(main).toMatch(/Restore desktop clicks/);
+  expect(preload).toMatch(/setOverlayInteractiveHeartbeat:/);
+  expect(preload).toMatch(/ipcRenderer\.send\("overlay:heartbeat"\)/);
 });
 
 test("floating panel docking waits for a resettable 180 ms movement settle", () => {
