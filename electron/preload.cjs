@@ -74,6 +74,9 @@ contextBridge.exposeInMainWorld("deskBuddies", {
     return () => ipcRenderer.removeListener("command:apply", listener);
   },
 
+  // Overlay heartbeat: proves the renderer is alive while it holds the mouse.
+  setOverlayInteractiveHeartbeat: () => ipcRenderer.send("overlay:heartbeat"),
+
   // Tray-driven events
   onTrayToggleFollow: (callback) => {
     const listener = (_event, enabled) => callback(Boolean(enabled));

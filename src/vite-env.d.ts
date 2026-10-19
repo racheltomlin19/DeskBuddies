@@ -44,6 +44,7 @@ declare global {
       onSnapshot: (callback: (snapshot: unknown) => void) => () => void;
       onSnapshotRequested: (callback: () => void) => () => void;
       setOverlayInteractive: (interactive: boolean) => void;
+      setOverlayInteractiveHeartbeat?: () => void;
       setFollow: (active: boolean) => void;
       onCursor: (callback: (point: { x: number; y: number } | null) => void) => () => void;
       pushCommand: (command: OverlayCommand) => void;
